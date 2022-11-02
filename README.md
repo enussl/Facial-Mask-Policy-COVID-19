@@ -10,6 +10,7 @@ The project is structured in 3 folders being
 * Data
 * Code
 * Plots
+
 Using the data provided under Data, we run all the estimations using the scripts provided under Code, which generates the results saved in Data and the
 plots outputted to Plots.
 
