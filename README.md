@@ -15,4 +15,6 @@ Using the data provided under Data, we run all the estimations using the scripts
 plots outputted to Plots.
 
 ## Scripts
+We shortly describe the scripts and the implemented functionalities therein.
 ### helperfunctions.R
+
