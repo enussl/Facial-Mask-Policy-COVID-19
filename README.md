@@ -43,13 +43,13 @@ Currently not used:
 * diagnostics: visual diagnostics for plm models
 
 ### estimations.R
-We run all the models using the functions defined in [helperfunctions.R] while looping over the parameters of interest.
+We run all the models using the functions defined in helperfunctions.R while looping over the parameters of interest.
 We write the results to the file results.csv.
 
 ### plots.R
 We construct the plots used in the paper, which are saved in the folder Plots.
 
 ### robustness.R
-We run the robustness checks discussed in the appendix using the functions defined in [helperfunctions.R]
+We run the robustness checks discussed in the appendix using the functions defined in helperfunctions.R
 
 
