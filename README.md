@@ -6,7 +6,7 @@ Repository containing all the code used in the paper "The effect of a strict fac
 * [Scripts](#scripts)
 
 ## General Info
-The project is structured in 3 folders being 
+The project is structured in 3 folders being:
 * Data
 * Code
 * Plots
