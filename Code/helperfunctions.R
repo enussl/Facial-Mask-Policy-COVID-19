@@ -12,7 +12,7 @@
 rm(list = ls())
 
 # Set working directory to the root node of folder structure
-setwd("C:\\Users\\eminu\\OneDrive\\Desktop\\Mask_Project\\Final")
+setwd(".\\Mask_Project\\Final")
 
 # Load used packages
 library(readr)

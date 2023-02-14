@@ -10,7 +10,7 @@
 rm(list = ls())
 
 # Set working directory to the root node of folder structure
-setwd("C:\\Users\\eminu\\OneDrive\\Desktop\\Mask_Project\\Final")
+setwd(".\\Mask_Project\\Final")
 
 # Read helper functions. Note that they are in the same directory. Add the corresponding path
 # otherwise.
