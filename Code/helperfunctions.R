@@ -1158,13 +1158,13 @@ estimation = function(frequency, response, model, infovar, type.effect) {
   if (frequency == "daily") {
     
     fit = plm(formula, 
-              data = data, model = model, random.method = "walhus",
+              data = data, model = model, random.method = "nerlove",
               index = c("X.Canton_3", "X.day"), 
               effect = "twoways")
   } else {
     
     fit = plm(formula, 
-              data = data, model = model, random.method = "walhus",
+              data = data, model = model, random.method = "nerlove",
               index = c("X.Canton_3", "X.oneweek"), 
               effect = "twoways")
   }
@@ -1205,13 +1205,13 @@ multiple_split = function(response, frequency, infovar, type.effect) {
   # Fit non-debiased model daily or weekly and save time and unit for sampling later
   if (frequency == "daily") {
     
-    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.day"), effect = "twoways", random.method = "walhus")
+    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.day"), effect = "twoways", random.method = "nerlove")
     time   = as.double(data$X.day)
     unit   = as.double(data$X.Canton_3)
     
   } else {
     
-    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.oneweek"), effect = "twoways", random.method = "walhus")
+    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.oneweek"), effect = "twoways", random.method = "nerlove")
     time   = as.double(data$X.oneweek)
     unit   = as.double(data$X.Canton_3)
   }
@@ -1301,14 +1301,14 @@ bootstat_fe = function(data) {
               data = data, model = "within",
               weights = sweight,
               index = c("X.Canton_3", "X.day"),
-              effect = "twoways")
+              effect = "twoways", random.method = "nerlove")
   } else {
     
     fit = plm(formula,
               data = data, model = "within",
               weights = sweight,
               index = c("X.Canton_3", "X.oneweek"),
-              effect = "twoways")
+              effect = "twoways", random.method = "nerlove")
   }
   
   # Store coefficients
