@@ -10,11 +10,14 @@
 rm(list = ls())
 
 # Set working directory to the root node of folder structure
-setwd(".\\Mask_Project\\Final")
+#setwd(".\\Mask_Project\\Final")
+setwd("C:/Users/eminu/OneDrive/Desktop/Facial-Mask-Policy-COVID-19")
 
 # Read helper functions. Note that they are in the same directory. Add the corresponding path
 # otherwise.
-source(".\\Scripts\\helperfunctions.R")
+#source(".\\Scripts\\helperfunctions.R")
+source("./Code/helperfunctions.R")
+
 
 # # Read in fonts
 # font_install("fontcm")
@@ -28,7 +31,7 @@ source(".\\Scripts\\helperfunctions.R")
 
 # Read in data; change col-names to correspond to dw-plot; make ordering consistent; remove those with additional 
 # information variables as well as the DML rows.
-results = read.csv(".\\Data\\results.csv", header = T, sep = ",", stringsAsFactors = FALSE)
+results = read.csv(".\\Data\\results_short_period.csv", header = T, sep = ",", stringsAsFactors = FALSE)
 results = results %>%
   filter(!model == "DML") %>%
   filter(!model == "Canton-Bootstrap") %>%
@@ -53,7 +56,7 @@ results.total = results %>%
 
 
 # Direct effect
-pdf(".\\Plots\\ci_plot_final_direct.pdf", width = 10, height = 10*1.414)
+pdf(".\\Plots\\ci_plot_final_direct_short.pdf", width = 10, height = 10*1.414)
 dwplot(results.direct, conf.level = 0.95, dodge_size = 0.6,
        vars_order = c("FE r", "FE growth.new.cases",  
                       "DFE r", "DFE growth.new.cases", 
@@ -77,7 +80,7 @@ dwplot(results.direct, conf.level = 0.95, dodge_size = 0.6,
 dev.off()
 
 # Total effect
-pdf(".\\Plots\\ci_plot_final_total.pdf", width = 10, height = 10*1.414)
+pdf(".\\Plots\\ci_plot_final_total_short.pdf", width = 10, height = 10*1.414)
 dwplot(results.total, conf.level = 0.95, dodge_size = 0.6, 
        vars_order = c("FE r", "FE growth.new.cases",  
                       "DFE r", "DFE growth.new.cases", 

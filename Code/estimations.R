@@ -15,11 +15,14 @@ rm(list = ls())
 set.seed(42) 
 
 # Set working directory to the root node of folder structure
-setwd(".\\Mask_Project\\Final")
+#setwd(".\\Mask_Project\\Final")
+setwd("C:/Users/eminu/OneDrive/Desktop/Facial-Mask-Policy-COVID-19")
+
 
 # Read helper functions. Note that they are in the same directory. Add the corresponding path
 # otherwise.
-source(".\\Scripts\\helperfunctions.R")
+#source(".\\Scripts\\helperfunctions.R")
+source("./Code/helperfunctions.R")
 
 ################################################################################
 
@@ -37,6 +40,7 @@ source(".\\Scripts\\helperfunctions.R")
 freq.poss = c("weekly")
 response.poss = c("median_R_mean", "casegrowth")
 model.poss = c("within", "random")
+#model.poss = c("within")
 type.effect.poss = c("direct", "total")
 
 # Allocation of results
@@ -329,6 +333,6 @@ results.dat = results.dat %>%
   filter(!(model != "HC3" & term == "RE Casegrowth")) 
 
 # Write csv
-write.csv(results.dat,".\\Data\\results.csv", row.names = FALSE)
+write.csv(results.dat,"./Data/results_short_period.csv", row.names = FALSE)
 
 

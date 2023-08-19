@@ -12,7 +12,8 @@
 rm(list = ls())
 
 # Set working directory to the root node of folder structure
-setwd(".\\Mask_Project\\Final")
+#setwd(".\\Mask_Project\\Final")
+setwd("C:/Users/eminu/OneDrive/Desktop/Facial-Mask-Policy-COVID-19")
 
 # Load used packages
 library(readr)
@@ -154,7 +155,9 @@ dlogd = function(x, id, t, lag, minval = 0.1) {
 } 
 
 data.prep = function(lag, shift, response, startdate = "2020-07-06",
-                     enddate = "2020-12-21", r.infovar, frequency) {
+                     enddate = "2020-10-18", r.infovar, frequency) {
+  
+  # 2020-12-21
   
   # lag: smoothing of covariates of lag days
   # shift: shifting of response when using casegrowth as defined 
@@ -1155,13 +1158,13 @@ estimation = function(frequency, response, model, infovar, type.effect) {
   if (frequency == "daily") {
     
     fit = plm(formula, 
-              data = data, model = model, 
+              data = data, model = model, random.method = "walhus",
               index = c("X.Canton_3", "X.day"), 
               effect = "twoways")
   } else {
     
     fit = plm(formula, 
-              data = data, model = model, 
+              data = data, model = model, random.method = "walhus",
               index = c("X.Canton_3", "X.oneweek"), 
               effect = "twoways")
   }
@@ -1202,13 +1205,13 @@ multiple_split = function(response, frequency, infovar, type.effect) {
   # Fit non-debiased model daily or weekly and save time and unit for sampling later
   if (frequency == "daily") {
     
-    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.day"), effect = "twoways")
+    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.day"), effect = "twoways", random.method = "walhus")
     time   = as.double(data$X.day)
     unit   = as.double(data$X.Canton_3)
     
   } else {
     
-    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.oneweek"), effect = "twoways")
+    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.oneweek"), effect = "twoways", random.method = "walhus")
     time   = as.double(data$X.oneweek)
     unit   = as.double(data$X.Canton_3)
   }
@@ -1230,19 +1233,19 @@ multiple_split = function(response, frequency, infovar, type.effect) {
     if (frequency == "daily") {
       
       cross1 = plm(formula, data = data[subsample1,], model = "within",
-                   index = c("X.Canton_3", "X.day"), effect = "twoways")
+                   index = c("X.Canton_3", "X.day"), effect = "twoways", random.method = "nerlove")
       
       cross2 = plm(formula, data = data[subsample2,], model = "within",
-                   index = c("X.Canton_3", "X.day"),effect = "twoways")
+                   index = c("X.Canton_3", "X.day"),effect = "twoways", random.method = "nerlove")
       
       
     } else {
       
       cross1 = plm(formula, data = data[subsample1,], model = "within",
-                   index = c("X.Canton_3", "X.oneweek"), effect = "twoways")
+                   index = c("X.Canton_3", "X.oneweek"), effect = "twoways", random.method = "nerlove")
       
       cross2 = plm(formula, data = data[subsample2,], model = "within",
-                   index = c("X.Canton_3", "X.oneweek"),effect = "twoways")
+                   index = c("X.Canton_3", "X.oneweek"),effect = "twoways", random.method = "nerlove")
       
     }
     across = across + ((coef(cross1) + coef(cross2))/2)/s
