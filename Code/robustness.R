@@ -14,11 +14,13 @@ rm(list = ls())
 set.seed(42) 
 
 # Set working directory to the root node of folder structure
-setwd(".\\Mask_Project\\Final")
+#setwd(".\\Mask_Project\\Final")
+setwd("C:/Users/eminu/OneDrive/Desktop/Facial-Mask-Policy-COVID-19")
 
 # Read helper functions. Note that they are in the same directory. Add the corresponding path
 # otherwise.
-source(".\\Scripts\\helperfunctions.R")
+#source(".\\Scripts\\helperfunctions.R")
+source("./Code/helperfunctions.R")
 
 ################################################################################
 
@@ -37,8 +39,8 @@ source(".\\Scripts\\helperfunctions.R")
 
 # Below, we report the point estimate, std.error and p.value concerning W for all these alterations.
 
-# (1) Clustering on months. We obviously only do it for the fixed effects models and we further look at the direct effects although
-# there is no change compared to the total effect. 
+# (1) Clustering on months. We obviously only do it for the fixed effects models and we further look at the total effects although
+# there is no change compared to the direct effect. 
 
 # Result matrix
 results.month = matrix(NA, nrow = 2*2, ncol = 3)
@@ -62,8 +64,8 @@ for (response in resp.poss) {
   
   # Store data; change configuration of data processing here to examine lag, shift and r.infovar. Add monthly indicators.
   data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
-  mo = rep(c(1,2,3,4,5,6,7), each = 4)
-  mo = mo[-c(26,27,28)]
+  mo = rep(c(1,2,3,4), each = 4)
+  mo = mo[-c(16,16)]
   data$month = rep(mo, 26)
   
   # Fixed effects model. We use the feols package as the plm package only allows clustering at the same levek as fixed effects, i.e weeks
@@ -102,8 +104,8 @@ for (response in resp.poss) {
   
   # Store data; change configuration of data processing here to examine lag, shift and r.infovar. Add monthly indicators.
   data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
-  mo = rep(c(1,2,3,4,5,6,7), each = 4)
-  mo = mo[-c(26,27,28)]
+  mo = rep(c(1,2,3,4), each = 4)
+  mo = mo[-c(16,16)]
   data$month = rep(mo, 26)
   
   # Fixed effects model. We use the feols package as the plm package only allows clustering at the same levek as fixed effects, i.e weeks
@@ -321,7 +323,7 @@ multiple_split_half = function(response, frequency, infovar, type.effect) {
 
 # Run it for the DFE approach
 multiple_split_half(response = "median_R_mean", frequency = "weekly", infovar = FALSE, type.effect = "total")
-
+multiple_split_half(response = "casegrowth", frequency = "weekly", infovar = FALSE, type.effect = "total")
 
 ################################################################################
 
@@ -523,6 +525,7 @@ multiple_split_timing = function(response, frequency, infovar, type.effect) {
 }
 
 multiple_split_timing(response = "casegrowth", frequency = "weekly", infovar = FALSE, type.effect = "total")
+multiple_split_timing(response = "median_R_mean", frequency = "weekly", infovar = FALSE, type.effect = "total")
 
 
 
@@ -804,5 +807,10 @@ results.robustnesscheck = rbind(results.month[c(1,3,5,6),], results.infovar, res
 
 write.csv(results.robustnesscheck,".\\Data\\results.robustnesschecks.csv", row.names = TRUE)
 
+
+
+conf_int = function(point_est, sd, df) {
+  return(round(c(point_est, point_est - qt(0.975, df)*sd, point_est + qt(0.975, df)*sd),2))
+}
 
 

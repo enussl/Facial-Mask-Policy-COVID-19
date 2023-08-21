@@ -333,6 +333,6 @@ results.dat = results.dat %>%
   filter(!(model != "HC3" & term == "RE Casegrowth")) 
 
 # Write csv
-write.csv(results.dat,"./Data/results_short_period.csv", row.names = FALSE)
+write.csv(results.dat,"./Data/results_short_period_weather.csv", row.names = FALSE)
 
 

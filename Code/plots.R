@@ -31,7 +31,7 @@ source("./Code/helperfunctions.R")
 
 # Read in data; change col-names to correspond to dw-plot; make ordering consistent; remove those with additional 
 # information variables as well as the DML rows.
-results = read.csv(".\\Data\\results_short_period.csv", header = T, sep = ",", stringsAsFactors = FALSE)
+results = read.csv(".\\Data\\results_short_period_weather.csv", header = T, sep = ",", stringsAsFactors = FALSE)
 results = results %>%
   filter(!model == "DML") %>%
   filter(!model == "Canton-Bootstrap") %>%
@@ -56,7 +56,7 @@ results.total = results %>%
 
 
 # Direct effect
-pdf(".\\Plots\\ci_plot_final_direct_short.pdf", width = 10, height = 10*1.414)
+pdf(".\\Plots\\ci_plot_final_direct_short_weather.pdf", width = 10, height = 10*1.414)
 dwplot(results.direct, conf.level = 0.95, dodge_size = 0.6,
        vars_order = c("FE r", "FE growth.new.cases",  
                       "DFE r", "DFE growth.new.cases", 
@@ -80,7 +80,7 @@ dwplot(results.direct, conf.level = 0.95, dodge_size = 0.6,
 dev.off()
 
 # Total effect
-pdf(".\\Plots\\ci_plot_final_total_short.pdf", width = 10, height = 10*1.414)
+pdf(".\\Plots\\ci_plot_final_total_short_weather.pdf", width = 10, height = 10*1.414)
 dwplot(results.total, conf.level = 0.95, dodge_size = 0.6, 
        vars_order = c("FE r", "FE growth.new.cases",  
                       "DFE r", "DFE growth.new.cases", 
@@ -121,7 +121,7 @@ data.case = rename(data.case, casegrowth = Y)
 
 # Merge data and adjust data type and input the abbreviations of the cantons. Also compute correlation
 data = merge(data.r, data.case)
-dates = rep(seq(as.Date("2020-07-06"), as.Date("2020-12-21"), by = "week"), 26)
+dates = rep(seq(as.Date("2020-07-06"), as.Date("2020-10-18"), by = "week"), 26)
 data = data %>%
   group_by(X.Canton_3) %>%
   mutate(correl = sprintf("italic(rho) == %.2f", round(cor(median_R_mean, casegrowth), 2)),
@@ -168,17 +168,18 @@ data = data %>%
          X.Canton_3 = replace(X.Canton_3, X.Canton_3 == 25, "TG"))
 
 # Plot
-pdf(".\\Plots\\r-case-compare.pdf", width = 10, height = 10*1.414)
+Sys.setlocale("LC_TIME", "English")
+pdf(".\\Plots\\r-case-compare_short.pdf", width = 10, height = 10*1.414)
 ggplot(mapping = aes(x = date, y = median_R_mean, group = X.Canton_3)) +
   geom_line(data = data, aes(x = date, y = median_R_mean, group = X.Canton_3, colour = "median_R_mean"), size = 0.75) +
   geom_line(data = data, aes(x = date, y = casegrowth, group = X.Canton_3, colour = "casegrowth"), size = 0.75) +
   facet_wrap(~ X.Canton_3, ncol = 3) +
-  geom_text(x = as.Date("2020-11-16"), y = 2.55, aes(label = correl), parse = TRUE, data = data, size = 4.5,
+  geom_text(x = as.Date("2020-08-10"), y = 3.6, aes(label = correl), parse = TRUE, data = data, size = 4.5,
             check_overlap = TRUE) +
   xlab("") +
   ylab("") +
   ylim(c(-4,6)) +
-  scale_x_date(date_breaks = "1 month", date_labels = "%m") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%B") +
   scale_color_manual(name = "", values = c("median_R_mean" = "#1B9E77", 
                                            "casegrowth" = "#E7298A"),
                      labels = c("r", "growth.new.cases")) +
@@ -421,7 +422,7 @@ for (k in 1:length(results.list.ta)) {
   colnames(data.plot) = c("Predictions", "Residuals")
   
   # Plot fitted vs. residuals
-  filename = paste("fittedres_total", k, ".pdf", sep = "")
+  filename = paste("fittedres_total_short", k, ".pdf", sep = "")
   pdf(filename, width = 6, height = 6)
   print(ggplot(data = data.plot) +
           geom_point(aes(x = predicted, y = residuals),
@@ -518,7 +519,7 @@ for (k in 1:length(results.list.ta)) {
   colnames(data.plot) = c("Predictions", "Residuals")
   
   # Plot fitted vs. residuals
-  filename = paste("fittedres_direct", k, ".pdf", sep = "")
+  filename = paste("fittedres_direct_short", k, ".pdf", sep = "")
   pdf(filename, width = 6, height = 6)
   print(ggplot(data = data.plot) +
           geom_point(aes(x = predicted, y = residuals),
@@ -601,6 +602,61 @@ for (response in c("median_R_mean", "casegrowth")) {
   
 }
 
+
+# (VI) Create plot for the adaptation of the strict facial mask policy of the cantons
+
+# Read in data
+DataCovid = read.csv(".\\Data\\DataCovid.csv") 
+dat.new = read.csv(".\\Data\\policy_stuff.csv", header = TRUE, sep = ",")
+
+# Merge data on common days
+data = merge(DataCovid, dat.new)
+data = data %>% 
+  select(geoRegion, facialCover, datum) %>%
+  mutate(datum = as.Date(datum),
+         facialCover = facialCover - 2) %>%
+  filter(datum >= "2020-07-06" & datum <= "2020-10-25")
+
+# Plot
+pdf(".\\Plots\\policy_fraction_short.pdf", width = 20, height = 10)
+ggplot(data = data, mapping = aes(x = datum, y = facialCover, group = geoRegion)) +
+  geom_line(size = 1.5) +
+  geom_line(data = dat.new %>% mutate(datum = as.Date(datum),
+                                      facialCover = facialCover - 2) %>% filter(datum >= "2020-07-06" & datum <= "2020-10-25" & geoRegion == "CH"),
+            mapping = aes(x = datum, y = facialCover), color = "firebrick", size = 2.5) +
+  geom_segment(aes(x = as.Date(c("2020-08-20")), y = 0.79-1, xend  = as.Date(c("2020-08-20")), yend = 0.99-1), data = data,
+               colour = "grey", linetype = 1, size = 0.75) +
+  geom_segment(aes(x = as.Date(c("2020-08-23")), y = 0.69-1, xend  = as.Date(c("2020-08-23")), yend = 0.99-1), data = data,
+               colour = "grey", linetype = 1, size = 1) +
+  geom_segment(aes(x = as.Date(c("2020-09-16")), y = 0.89-1, xend  = as.Date(c("2020-09-16")), yend = 0.99-1), data = data,
+               colour = "grey", linetype = 1, size = 1) +
+  geom_segment(aes(x = as.Date(c("2020-10-11")), y = 0.89-1, xend  = as.Date(c("2020-10-11")), yend = 0.99-1), data = data,
+               colour = "grey", linetype = 1, size = 1) +
+  geom_segment(aes(x = as.Date(c("2020-10-13")), y = 0.79-1, xend  = as.Date(c("2020-10-13")), yend = 0.99-1), data = data,
+               colour = "grey", linetype = 1, size = 1) +
+  geom_segment(aes(x = as.Date(c("2020-10-15")), y = 0.69-1, xend  = as.Date(c("2020-10-15")), yend = 0.99-1), data = data,
+               colour = "grey", linetype = 1, size = 1) +
+  geom_segment(aes(x = as.Date(c("2020-10-16")), y = 0.59-1, xend  = as.Date(c("2020-10-16")), yend = 0.99-1), data = data,
+               colour = "grey", linetype = 1, size = 1) +
+  geom_segment(aes(x = as.Date(c("2020-10-17"))+0.1, y = 0.49-1, xend  = as.Date(c("2020-10-17"))+0.1, yend = 0.99-1), data = data,
+               colour = "grey", linetype = 1, size = 1) +
+  annotate("text", x = as.Date(c("2020-08-20")), y = 0.75-1, label = c("NE"), size = 8) +
+  annotate("text", x = as.Date(c("2020-08-23")), y = 0.65-1, label = c("BS"), size = 8) +
+  annotate("text", x = as.Date(c("2020-09-16")), y = 0.85-1, label = c("VD"), size = 8) +
+  annotate("text", x = as.Date(c("2020-10-11")), y = 0.85-1, label = c("BE"), size = 8) +
+  annotate("text", x = as.Date(c("2020-10-13")), y = 0.75-1, label = c("GE"), size = 8) +
+  annotate("text", x = as.Date(c("2020-10-15")), y = 0.65-1, label = c("SZ"), size = 8) +
+  annotate("text", x = as.Date(c("2020-10-16")), y = 0.55-1, label = c("LU, GR, FR"), size = 8) +
+  annotate("text", x = as.Date(c("2020-10-17")), y = 0.45-1, label = c("VS"), size = 8) +
+  scale_x_date(breaks = "1 month", date_labels = "%B") +
+  scale_y_continuous(breaks= c(-1,0,1)) +
+  labs(x = "", y = "Facial-Mask Policy", color = "Cantons") +
+  theme_minimal() +
+  theme(text = element_text(size = 30), 
+        panel.grid = element_line(linetype = 2, size = 1.25),
+        panel.grid.minor = element_line(linetype = 2, size = 1.25),
+        panel.border = element_blank()) 
+dev.off()
 
 ################################################################################
 
