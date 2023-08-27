@@ -658,6 +658,34 @@ ggplot(data = data, mapping = aes(x = datum, y = facialCover, group = geoRegion)
         panel.border = element_blank()) 
 dev.off()
 
+
+# (VII) Development over time depending on mask policy
+library(Hmisc)
+startdate = as.Date("2020-07-06")
+data = data.prep(lag = 7, shift = 14, response = "median_R_mean", r.infovar = 21, frequency = "daily")$data %>%
+  mutate(W_bin = ifelse(W > 0, 1, 0),
+         date = startdate + X.day - 134) 
+
+pdf(".\\Plots\\over_time_policy.pdf", width = 20, height = 10)
+ggplot(data, aes(x = date, y = Y, color = factor(W_bin))) +
+  geom_point(alpha = ifelse(data$W_bin == 0, 0.3, 1)) +
+  stat_summary(
+    fun.data = "mean_sdl",
+    #fun.args = list(mult = 1.5),
+    geom = "line",
+    aes(group = factor(W_bin), size = factor(W_bin))
+  ) +
+  labs(x = "", y = "Effective Reproductive Number", color = "W", size = "") +
+  scale_color_manual(values = c("0" = "black", "1" = "firebrick")) +
+  scale_size_manual(values = c("0" = 1.2, "1" = 1.2)) +
+  guides(size = "none") +
+  theme_minimal() +
+  theme(
+    legend.position = "top",  
+    legend.title = element_blank(),
+    legend.spacing = unit(0.3, "cm")  
+  )
+dev.off()
 ################################################################################
 
 
