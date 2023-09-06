@@ -170,9 +170,13 @@ data = data %>%
 # Plot
 Sys.setlocale("LC_TIME", "English")
 pdf(".\\Plots\\r-case-compare_short.pdf", width = 10, height = 10*1.414)
-ggplot(mapping = aes(x = date, y = median_R_mean, group = X.Canton_3)) +
-  geom_line(data = data, aes(x = date, y = median_R_mean, group = X.Canton_3, colour = "median_R_mean"), size = 0.75) +
-  geom_line(data = data, aes(x = date, y = casegrowth, group = X.Canton_3, colour = "casegrowth"), size = 0.75) +
+data %>% ggplot() +
+  geom_line(aes(x = date, y = median_R_mean, colour = "#1B9E77"), size = 0.75) +
+  geom_line(aes(x = date, y = casegrowth, colour = "#E7298A"), size = 0.75) +
+  geom_hline(yintercept=0, color = "gray")+
+  geom_vline(xintercept=as.Date("2020-08-01"),linetype = "dashed", color = "gray")+
+  geom_vline(xintercept=as.Date("2020-09-01"),linetype = "dashed", color = "gray")+
+  geom_vline(xintercept=as.Date("2020-10-01"),linetype = "dashed", color = "gray")+
   facet_wrap(~ X.Canton_3, ncol = 3) +
   geom_text(x = as.Date("2020-08-10"), y = 3.6, aes(label = correl), parse = TRUE, data = data, size = 4.5,
             check_overlap = TRUE) +
@@ -180,8 +184,7 @@ ggplot(mapping = aes(x = date, y = median_R_mean, group = X.Canton_3)) +
   ylab("") +
   ylim(c(-4,6)) +
   scale_x_date(date_breaks = "1 month", date_labels = "%B") +
-  scale_color_manual(name = "", values = c("median_R_mean" = "#1B9E77", 
-                                           "casegrowth" = "#E7298A"),
+  scale_color_manual(name = "", values = c("#1B9E77","#E7298A"),
                      labels = c("r", "growth.new.cases")) +
   theme_bw() +
   theme(text = element_text(color = "black", size = 14),
@@ -191,6 +194,7 @@ ggplot(mapping = aes(x = date, y = median_R_mean, group = X.Canton_3)) +
         strip.text.y = element_text(color = "black", size = 12),
         legend.position = c(0.8275, 0.04)) 
 dev.off()
+
 
 # (iii) Pairwise correlation plot of variables
 
