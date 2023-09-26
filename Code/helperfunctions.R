@@ -10,6 +10,7 @@
 
 # Empty environment
 rm(list = ls())
+set.seed(42)
 
 # Set working directory to the root node of folder structure
 #setwd(".\\Mask_Project\\Final")
@@ -53,6 +54,7 @@ library(RColorBrewer)
 library(ggcorrplot)
 library(plot.matrix)
 library(clubSandwich)
+library(paletteer)
 
 ################################################################################
 
@@ -155,7 +157,7 @@ dlogd = function(x, id, t, lag, minval = 0.1) {
 } 
 
 data.prep = function(lag, shift, response, startdate = "2020-07-06",
-                     enddate = "2020-10-18", r.infovar, frequency) {
+                     enddate = "2020-12-20", r.infovar, frequency) {
   
   # 2020-12-21
   
@@ -541,7 +543,7 @@ construct.formula = function(response, frequency, model, infovar, type.effect) {
     
     if (response == "median_R_mean") {
       
-      formula = Y ~ X.median_R_mean.lag_we + X.median_R_mean.lag1_we + X.sre000d0_we + X.tre200d0_we + X.ure200d0_we +
+      formula = Y ~ X.median_R_mean.lag_we + X.sre000d0_we + X.tre200d0_we + X.ure200d0_we +
         X.restGatherings_we + X.cancEvents_we + X.workClosing2a_we + W +
         X.ferien_we + X.transactiongrowth_we 
       
@@ -553,7 +555,7 @@ construct.formula = function(response, frequency, model, infovar, type.effect) {
       
     } else {
       
-      formula = Y ~ X.casegrowthlag_we + X.casegrowthlag1_we + X.sre000d0_we + X.tre200d0_we + X.ure200d0_we + 
+      formula = Y ~ X.casegrowthlag_we + X.sre000d0_we + X.tre200d0_we + X.ure200d0_we + 
         X.restGatherings_we + X.cancEvents_we + X.workClosing2a_we + W + 
         X.ferien_we + X.transactiongrowth_we 
       
@@ -1158,13 +1160,13 @@ estimation = function(frequency, response, model, infovar, type.effect) {
   if (frequency == "daily") {
     
     fit = plm(formula, 
-              data = data, model = model, random.method = "nerlove",
+              data = data, model = model,
               index = c("X.Canton_3", "X.day"), 
               effect = "twoways")
   } else {
     
     fit = plm(formula, 
-              data = data, model = model, random.method = "nerlove",
+              data = data, model = model,
               index = c("X.Canton_3", "X.oneweek"), 
               effect = "twoways")
   }
@@ -1200,18 +1202,18 @@ multiple_split = function(response, frequency, infovar, type.effect) {
   formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect)
   
   # Number of splits along the cross-section
-  s = 20
+  s = 500
   
   # Fit non-debiased model daily or weekly and save time and unit for sampling later
   if (frequency == "daily") {
     
-    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.day"), effect = "twoways", random.method = "nerlove")
+    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.day"), effect = "twoways")
     time   = as.double(data$X.day)
     unit   = as.double(data$X.Canton_3)
     
   } else {
     
-    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.oneweek"), effect = "twoways", random.method = "nerlove")
+    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.oneweek"), effect = "twoways")
     time   = as.double(data$X.oneweek)
     unit   = as.double(data$X.Canton_3)
   }
@@ -1233,22 +1235,31 @@ multiple_split = function(response, frequency, infovar, type.effect) {
     if (frequency == "daily") {
       
       cross1 = plm(formula, data = data[subsample1,], model = "within",
-                   index = c("X.Canton_3", "X.day"), effect = "twoways", random.method = "nerlove")
+                   index = c("X.Canton_3", "X.day"), effect = "twoways")
       
       cross2 = plm(formula, data = data[subsample2,], model = "within",
-                   index = c("X.Canton_3", "X.day"),effect = "twoways", random.method = "nerlove")
+                   index = c("X.Canton_3", "X.day"),effect = "twoways")
       
       
     } else {
       
       cross1 = plm(formula, data = data[subsample1,], model = "within",
-                   index = c("X.Canton_3", "X.oneweek"), effect = "twoways", random.method = "nerlove")
+                   index = c("X.Canton_3", "X.oneweek"), effect = "twoways")
       
       cross2 = plm(formula, data = data[subsample2,], model = "within",
-                   index = c("X.Canton_3", "X.oneweek"),effect = "twoways", random.method = "nerlove")
+                   index = c("X.Canton_3", "X.oneweek"),effect = "twoways")
       
     }
-    across = across + ((coef(cross1) + coef(cross2))/2)/s
+    common_coef_names = intersect(names(coef(cross1)), names(coef(cross2))) # all of them in both samples
+    print(length(common_coef_names))
+    for (coef_name in common_coef_names) {
+      coef_cross1 = coef(cross1)[coef_name]
+      coef_cross2 = coef(cross2)[coef_name]
+
+      result = (coef_cross1 + coef_cross2) / (2 * s)
+      across[coef_name] = across[coef_name] + result
+    }
+    #across = across + ((coef(cross1) + coef(cross2))/2)/s
   }
   
   # Average cross over corrected
@@ -1301,14 +1312,14 @@ bootstat_fe = function(data) {
               data = data, model = "within",
               weights = sweight,
               index = c("X.Canton_3", "X.day"),
-              effect = "twoways", random.method = "nerlove")
+              effect = "twoways")
   } else {
     
     fit = plm(formula,
               data = data, model = "within",
               weights = sweight,
               index = c("X.Canton_3", "X.oneweek"),
-              effect = "twoways", random.method = "nerlove")
+              effect = "twoways")
   }
   
   # Store coefficients

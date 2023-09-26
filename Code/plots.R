@@ -31,7 +31,7 @@ source("./Code/helperfunctions.R")
 
 # Read in data; change col-names to correspond to dw-plot; make ordering consistent; remove those with additional 
 # information variables as well as the DML rows.
-results = read.csv(".\\Data\\results_short_period_weather.csv", header = T, sep = ",", stringsAsFactors = FALSE)
+results = read.csv(".\\Data\\results_long_period_new.csv", header = T, sep = ",", stringsAsFactors = FALSE)
 results = results %>%
   filter(!model == "DML") %>%
   filter(!model == "Canton-Bootstrap") %>%
