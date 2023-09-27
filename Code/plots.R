@@ -185,7 +185,7 @@ data %>% ggplot() +
   xlab("") +
   ylab("") +
   ylim(c(-4,6)) +
-  scale_x_date(date_breaks = "1 month", date_labels = "%B") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
   scale_color_manual(name = "", values = c("#1B9E77","#E7298A"),
                      labels = c("r", "growth.new.cases")) +
   theme_bw() +

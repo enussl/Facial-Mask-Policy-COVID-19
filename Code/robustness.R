@@ -37,6 +37,7 @@ source("./Code/helperfunctions.R")
 #     - (9) Short period where the cantonal heterogeneity was most present (August to October)
 #     - (10) Double Machine Learning approaches
 #     - (11) Add lag-1 response variables
+#     - (12) Short sample period
 
 # Below, we report the point estimate, std.error and p.value concerning W for all these alterations.
 
@@ -65,8 +66,8 @@ for (response in resp.poss) {
   
   # Store data; change configuration of data processing here to examine lag, shift and r.infovar. Add monthly indicators.
   data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
-  mo = rep(c(1,2,3,4), each = 4)
-  mo = mo[-c(16,16)]
+  mo = rep(1:6, each = 4)
+  #mo = mo[-c(16,16)]
   data$month = rep(mo, 26)
   
   # Fixed effects model. We use the feols package as the plm package only allows clustering at the same levek as fixed effects, i.e weeks
@@ -78,12 +79,12 @@ for (response in resp.poss) {
   #           effect = "twoways")
   
   if (response == "casegrowth") {
-    fit = feols(Y ~ X.casegrowthlag_we + X.casegrowthlag1_we + X.sre000d0_we + 
+    fit = feols(Y ~ X.casegrowthlag_we + X.sre000d0_we + 
                   X.tre200d0_we + X.ure200d0_we + X.restGatherings_we + X.cancEvents_we + 
                   X.workClosing2a_we + W + X.ferien_we | X.Canton_3 + X.oneweek, data = data,
                 cluster = c("month"))
   } else if (response == "median_R_mean") {
-    fit = feols(Y ~ X.median_R_mean.lag_we + X.median_R_mean.lag1_we + X.sre000d0_we + 
+    fit = feols(Y ~ X.median_R_mean.lag_we + X.sre000d0_we + 
                   X.tre200d0_we + X.ure200d0_we + X.restGatherings_we + X.cancEvents_we + 
                   X.workClosing2a_we + W + X.ferien_we | X.Canton_3 + X.oneweek, data = data,
                 cluster = c("month"))
@@ -105,8 +106,8 @@ for (response in resp.poss) {
   
   # Store data; change configuration of data processing here to examine lag, shift and r.infovar. Add monthly indicators.
   data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
-  mo = rep(c(1,2,3,4), each = 4)
-  mo = mo[-c(16,16)]
+  mo = rep(1:6, each = 4)
+  #mo = mo[-c(16,16)]
   data$month = rep(mo, 26)
   
   # Fixed effects model. We use the feols package as the plm package only allows clustering at the same levek as fixed effects, i.e weeks
@@ -118,12 +119,12 @@ for (response in resp.poss) {
   #           effect = "twoways")
   
   if (response == "casegrowth") {
-    fit = feols(Y ~ X.casegrowthlag_we + X.casegrowthlag1_we + X.sre000d0_we + 
+    fit = feols(Y ~ X.casegrowthlag_we + X.sre000d0_we + 
                   X.tre200d0_we + X.ure200d0_we + X.restGatherings_we + X.cancEvents_we + 
                   X.workClosing2a_we + W + X.ferien_we | X.Canton_3 + X.oneweek, data = data,
                 cluster = c("month", "X.Canton_3"))
   } else if (response == "median_R_mean") {
-    fit = feols(Y ~ X.median_R_mean.lag_we + X.median_R_mean.lag1_we + X.sre000d0_we + 
+    fit = feols(Y ~ X.median_R_mean.lag_we + X.sre000d0_we + 
                   X.tre200d0_we + X.ure200d0_we + X.restGatherings_we + X.cancEvents_we + 
                   X.workClosing2a_we + W + X.ferien_we | X.Canton_3 + X.oneweek, data = data,
                 cluster = c("month", "X.Canton_3"))
@@ -171,9 +172,12 @@ j = 1
 # Run the models
 for (type.effect in type.effect.poss) {
   
-  results.infovar[j,1] = estimation(frequency = frequency, response = response, model = model, infovar = infovar, type.effect = type.effect)$results[[1]]["W",1]
-  results.infovar[j,2] = estimation(frequency = frequency, response = response, model = model, infovar = infovar, type.effect = type.effect)$results[[1]]["W",2]
-  results.infovar[j,3] = estimation(frequency = frequency, response = response, model = model, infovar = infovar, type.effect = type.effect)$results[[1]]["W",4]
+  results.infovar[j,1] = estimation(frequency = frequency, response = response, model = model, infovar = infovar, type.effect = type.effect,
+                                    lag.one = FALSE)$results[[1]]["W",1]
+  results.infovar[j,2] = estimation(frequency = frequency, response = response, model = model, infovar = infovar, type.effect = type.effect,
+                                    lag.one = FALSE)$results[[1]]["W",2]
+  results.infovar[j,3] = estimation(frequency = frequency, response = response, model = model, infovar = infovar, type.effect = type.effect,
+                                    lag.one = FALSE)$results[[1]]["W",4]
   j = j + 1
 }
 
@@ -207,7 +211,8 @@ for (model in model.poss) {
   for (response in resp.poss) {
     
     # Store formula
-    formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect)
+    formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect,
+                                lag.one = FALSE)
     
     # Store data; change configuration of data processing here to examine lag, shift and r.infovar
     data = data.prep.halfcantons(shift = 14, response = response, r.infovar = 21)$data
@@ -262,10 +267,11 @@ multiple_split_half = function(response, frequency, infovar, type.effect) {
   data = data.prep.halfcantons(response = response, r.infovar = 21, shift = 14)$data
   
   # Store formula
-  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect,
+                              lag.one = FALSE)
   
   # Number of splits along the cross-section
-  s = 20
+  s = 500
   
   # Fit non-debiased model daily or weekly and save time and unit for sampling later
   if (frequency == "daily") {
@@ -313,7 +319,17 @@ multiple_split_half = function(response, frequency, infovar, type.effect) {
                    index = c("X.Canton_3", "X.oneweek"),effect = "twoways")
       
     }
-    across = across + ((coef(cross1) + coef(cross2))/2)/s
+    common_coef_names = intersect(names(coef(cross1)), names(coef(cross2))) # all of them in both samples
+    print(length(common_coef_names))
+    print(common_coef_names)
+    for (coef_name in common_coef_names) {
+      coef_cross1 = coef(cross1)[coef_name]
+      coef_cross2 = coef(cross2)[coef_name]
+      
+      result = (coef_cross1 + coef_cross2) / (2 * s)
+      across[coef_name] = across[coef_name] + result
+    }
+    #across = across + ((coef(cross1) + coef(cross2))/2)/s
   }
   
   # Average cross over corrected
@@ -350,7 +366,8 @@ j = 1
 for (model in model.poss) {
   
   # Store formula
-  formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect,
+                              lag.one = FALSE)
   
   # Store data; change configuration of data processing here to examine lag, shift and r.infovar
   data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 14, frequency = frequency)$data
@@ -412,7 +429,8 @@ j = 1
 for (model in model.poss) {
   
   # Store formula
-  formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect,
+                              lag.one = FALSE)
   
   # Store data; change configuration of data processing here to examine lag, shift and r.infovar
   data = data.prep(lag = 7, shift = 21, response = response, r.infovar = 21, frequency = frequency)$data
@@ -466,10 +484,11 @@ multiple_split_timing = function(response, frequency, infovar, type.effect) {
   data = data.prep.halfcantons(response = response, r.infovar = 14, shift = 21)$data
   
   # Store formula
-  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect,
+                              lag.one = FALSE)
   
   # Number of splits along the cross-section
-  s = 20
+  s = 500
   
   # Fit non-debiased model daily or weekly and save time and unit for sampling later
   if (frequency == "daily") {
@@ -517,7 +536,17 @@ multiple_split_timing = function(response, frequency, infovar, type.effect) {
                    index = c("X.Canton_3", "X.oneweek"),effect = "twoways")
       
     }
-    across = across + ((coef(cross1) + coef(cross2))/2)/s
+    common_coef_names = intersect(names(coef(cross1)), names(coef(cross2))) # all of them in both samples
+    print(length(common_coef_names))
+    print(common_coef_names)
+    for (coef_name in common_coef_names) {
+      coef_cross1 = coef(cross1)[coef_name]
+      coef_cross2 = coef(cross2)[coef_name]
+      
+      result = (coef_cross1 + coef_cross2) / (2 * s)
+      across[coef_name] = across[coef_name] + result
+    }
+    #across = across + ((coef(cross1) + coef(cross2))/2)/s
   }
   
   # Average cross over corrected
@@ -527,7 +556,6 @@ multiple_split_timing = function(response, frequency, infovar, type.effect) {
 
 multiple_split_timing(response = "casegrowth", frequency = "weekly", infovar = FALSE, type.effect = "total")
 multiple_split_timing(response = "median_R_mean", frequency = "weekly", infovar = FALSE, type.effect = "total")
-
 
 
 ################################################################################
@@ -558,7 +586,8 @@ for (response in resp.poss) {
                    response = response, frequency = frequency)
   
   # Store formula
-  formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect,
+                              lag.one = FALSE)
   
   # Run fixed effects regression via lm
   fit.original = lm(formula, data = data)
@@ -655,12 +684,12 @@ results.robust = as.data.frame(results.robust, row.names = c("Robust FE Casegrow
 
 
 # Result matrix
-results.shortperiod = matrix(NA, nrow = 4, ncol = 3)
+results.shortperiod = matrix(NA, nrow = 2, ncol = 3)
 colnames(results.shortperiod) = c("estimate", "std.error", "p.val")
 
 # Parameters
 resp.poss = c("casegrowth", "median_R_mean")
-model.poss = c("within", "random")
+model.poss = c("within")
 frequency = "weekly"
 type.effect = "total"
 infovar = FALSE
@@ -675,7 +704,8 @@ for (model in model.poss) {
   for (response in resp.poss) {
     
     # Store formula
-    formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect)
+    formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect,
+                                lag.one = FALSE)
     
     # Store data; change configuration of data processing here to examine lag, shift and r.infovar
     data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency,
@@ -715,8 +745,7 @@ for (model in model.poss) {
 }
 
 # Naming
-results.shortperiod = as.data.frame(results.shortperiod, row.names = c("Short Per. FE Daily Casegrowth", "Short Per. FE Daily R",
-                                                                       "Short Per. FE Weekly Casegrowth", "Short Per. FE Weekly R"))
+results.shortperiod = as.data.frame(results.shortperiod, row.names = c("Short Per. FE Weekly Casegrowth", "Short Per. FE Weekly R"))
 
 # Do that for the DFE
 multiple_split_short = function(response, frequency, infovar, type.effect) {
@@ -733,10 +762,11 @@ multiple_split_short = function(response, frequency, infovar, type.effect) {
                                enddate = "2020-10-18")$data
   
   # Store formula
-  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect,
+                              lag.one = FALSE)
   
   # Number of splits along the cross-section
-  s = 20
+  s = 500
   
   # Fit non-debiased model daily or weekly and save time and unit for sampling later
   if (frequency == "daily") {
@@ -784,7 +814,17 @@ multiple_split_short = function(response, frequency, infovar, type.effect) {
                    index = c("X.Canton_3", "X.oneweek"),effect = "twoways")
       
     }
-    across = across + ((coef(cross1) + coef(cross2))/2)/s
+    common_coef_names = intersect(names(coef(cross1)), names(coef(cross2))) # all of them in both samples
+    print(length(common_coef_names))
+    print(common_coef_names)
+    for (coef_name in common_coef_names) {
+      coef_cross1 = coef(cross1)[coef_name]
+      coef_cross2 = coef(cross2)[coef_name]
+      
+      result = (coef_cross1 + coef_cross2) / (2 * s)
+      across[coef_name] = across[coef_name] + result
+    }
+    #across = across + ((coef(cross1) + coef(cross2))/2)/s
   }
   
   # Average cross over corrected
@@ -893,14 +933,178 @@ results.lag[8,1] = results.list.lag.dml[[2]][[1]][1] # dml case
 results.lag[8,2] = results.list.lag.dml[[2]][[1]][2]
 results.lag[8,3] = results.list.lag.dml[[2]][[1]][4]
 
+results.lag = as.data.frame(results.lag, row.names = c("FE R lag 1", "RE R lag 1",
+                                                       "FE Case lag 1", "RE Case lag 1",
+                                                       "DFE R lag 1", "DFE Case lag 1",
+                                                       "DML R lag 1", "DML Case lag 1"))
+
+################################################################################
+
+# (12) Short sample period (not very short)
+
+# Result matrix
+results.middleperiod = matrix(NA, nrow = 4, ncol = 3)
+colnames(results.middleperiod) = c("estimate", "std.error", "p.val")
+
+# Parameters
+resp.poss = c("casegrowth", "median_R_mean")
+model.poss = c("within", "random")
+frequency = "weekly"
+type.effect = "total"
+infovar = FALSE
+startdate = "2020-07-06"
+enddate = "2020-10-18"
+
+# Allocation
+j = 1
+
+for (model in model.poss) {
+  
+  for (response in resp.poss) {
+    
+    # Store formula
+    formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect,
+                                lag.one = FALSE)
+    
+    # Store data; change configuration of data processing here to examine lag, shift and r.infovar
+    data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency,
+                     startdate = startdate, enddate = enddate)$data
+    
+    # Fixed effects model
+    fit = plm(formula, 
+              data = data, model = model, 
+              index = c("X.Canton_3", "X.oneweek"), 
+              effect = "twoways")
+    
+    if (model == "within") {
+      
+      # Covariance matrix
+      res = coeftest(fit, vcov = function(x) 
+        clubSandwich::vcovCR(x, type = "CR0", cluster = c(data$X.oneweek, data$X.Canton_3)))
+      
+      # Results
+      results.middleperiod[j,1] = res["W",1]
+      results.middleperiod[j,2] = res["W",2]
+      results.middleperiod[j,3] = res["W",4]
+      
+    } else {
+      
+      # Covariance matrix
+      res = coeftest(fit, vcov = function(x) 
+        sandwich::vcovHC(x, type = "HC3"))
+      
+      # Results
+      results.middleperiod[j,1] = res["W",1]
+      results.middleperiod[j,2] = res["W",2]
+      results.middleperiod[j,3] = res["W",4]
+    }
+    
+    j = j + 1
+  }
+}
+
+# Naming
+results.middleperiod = as.data.frame(results.middleperiod, row.names = c("Middle Per. FE Weekly Casegrowth", "Middle Per. FE Weekly R",
+                                                                         "Middle Per. RE Weekly Casegrowth", "Middle Per. RE Weekly R"))
+
+# Do that for the DFE
+multiple_split_middle = function(response, frequency, infovar, type.effect) {
+  
+  # response: response variable in {median_R_mean, casegrowth}
+  # frequency: frequency in {daily, weekly}
+  # infovar: add additional information variables
+  # type.effect: direct or total to include behavior variables or not
+  
+  # Output: bias.corrected estimate of mask policy
+  
+  # Data
+  data = data.prep(response = response, r.infovar = 21, shift = 14, startdate = "2020-07-06",
+                   enddate = "2020-10-18", frequency = "weekly")$data
+  
+  # Store formula
+  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect,
+                              lag.one = FALSE)
+  
+  # Number of splits along the cross-section
+  s = 500
+  
+  # Fit non-debiased model daily or weekly and save time and unit for sampling later
+  if (frequency == "daily") {
+    
+    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.day"), effect = "twoways")
+    time   = as.double(data$X.day)
+    unit   = as.double(data$X.Canton_3)
+    
+  } else {
+    
+    uc     = plm(formula, data = data, model = "within", index = c("X.Canton_3", "X.oneweek"), effect = "twoways")
+    time   = as.double(data$X.oneweek)
+    unit   = as.double(data$X.Canton_3)
+  }
+  
+  # Start computation 
+  across = 0 * coef(uc)
+  
+  for (k in 1:s) {
+    
+    # Sampling process
+    sample1 = sample(unique(unit), ceiling(length(unique(unit))/2), replace = FALSE)
+    
+    subsample1 = ((unit %in% sample1) & (time <= median(time))) |
+      ((!(unit %in% sample1)) & (time > median(time)))
+    
+    subsample2 = ((unit %in% sample1) & (time > median(time))) |
+      ((!(unit %in% sample1)) & (time <= median(time)))
+    
+    if (frequency == "daily") {
+      
+      cross1 = plm(formula, data = data[subsample1,], model = "within",
+                   index = c("X.Canton_3", "X.day"), effect = "twoways")
+      
+      cross2 = plm(formula, data = data[subsample2,], model = "within",
+                   index = c("X.Canton_3", "X.day"),effect = "twoways")
+      
+      
+    } else {
+      
+      cross1 = plm(formula, data = data[subsample1,], model = "within",
+                   index = c("X.Canton_3", "X.oneweek"), effect = "twoways")
+      
+      cross2 = plm(formula, data = data[subsample2,], model = "within",
+                   index = c("X.Canton_3", "X.oneweek"),effect = "twoways")
+      
+    }
+    common_coef_names = intersect(names(coef(cross1)), names(coef(cross2))) # all of them in both samples
+    print(length(common_coef_names))
+    print(common_coef_names)
+    for (coef_name in common_coef_names) {
+      coef_cross1 = coef(cross1)[coef_name]
+      coef_cross2 = coef(cross2)[coef_name]
+      
+      result = (coef_cross1 + coef_cross2) / (2 * s)
+      across[coef_name] = across[coef_name] + result
+    }
+    #across = across + ((coef(cross1) + coef(cross2))/2)/s
+  }
+  
+  # Average cross over corrected
+  acbc = 2 * coef(uc) - across
+  return(acbc)
+}
+
+multiple_split_middle(response = "median_R_mean", frequency = "weekly", infovar = FALSE, type.effect = "total")
+multiple_split_middle(response = "casegrowth", frequency = "weekly", infovar = FALSE, type.effect = "total")
+
 ################################################################################
 
 # Construct the main table and safe the results as a csv file
-results.robustnesscheck = rbind(results.month[c(1,3,5,6),], results.infovar, results.halfcanton,
+results.robustnesscheck = rbind(results.month, results.infovar, results.halfcanton,
                                 results.rinfovar, results.casetiming,
-                                results.cooks[,1:3], results.shortperiod, results.lag)
+                                results.cooks[,1:3], results.shortperiod, results.lag) %>%
+  mutate(p.val.lower = round(estimate-1.96*std.error, 2),
+         p.val.upper = round(estimate+1.96*std.error, 2))
 
-write.csv(results.robustnesscheck,".\\Data\\results.robustnesschecks.csv", row.names = TRUE)
+write.csv(results.robustnesscheck,".\\Data\\results.robustnesschecks.final.csv", row.names = TRUE)
 
 
 

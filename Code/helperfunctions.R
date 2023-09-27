@@ -55,6 +55,7 @@ library(ggcorrplot)
 library(plot.matrix)
 library(clubSandwich)
 library(paletteer)
+library(fixest)
 
 ################################################################################
 
