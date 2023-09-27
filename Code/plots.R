@@ -31,7 +31,7 @@ source("./Code/helperfunctions.R")
 
 # Read in data; change col-names to correspond to dw-plot; make ordering consistent; remove those with additional 
 # information variables as well as the DML rows.
-results = read.csv(".\\Data\\results_long_period_new.csv", header = T, sep = ",", stringsAsFactors = FALSE)
+results = read.csv(".\\Data\\results_long_period_new_1.csv", header = T, sep = ",", stringsAsFactors = FALSE)
 results = results %>%
   filter(!model == "DML") %>%
   filter(!model == "Canton-Bootstrap") %>%
@@ -56,7 +56,7 @@ results.total = results %>%
 
 
 # Direct effect
-pdf(".\\Plots\\ci_plot_final_direct_short_weather.pdf", width = 10, height = 10*1.414)
+pdf(".\\Plots\\ci_plot_final_direct.pdf", width = 10, height = 10*1.414)
 dwplot(results.direct, conf.level = 0.95, dodge_size = 0.6,
        vars_order = c("FE r", "FE growth.new.cases",  
                       "DFE r", "DFE growth.new.cases", 
@@ -72,7 +72,7 @@ dwplot(results.direct, conf.level = 0.95, dodge_size = 0.6,
         axis.text = element_text(color = "black", size = 14),
         axis.text.x = element_text(color = "black", size = 14),
         legend.text = element_text(color = "black", size = 14),
-        panel.grid.major.y = element_blank())+
+        panel.grid.major.y = element_blank()) +
   xlab("Estimated direct effect of mask policy and corresponding 95%-CI") +
   scale_x_continuous(breaks = c(0.1,0.0,-0.1,-0.2,-0.3,-0.4,-0.5,-0.6,-0.7), limits = c(-0.7, 0.08),
                      minor_breaks = c(0.05,-0.05,-0.15,-0.25,-0.35,-0.45,-0.55,-0.65)) +
@@ -80,7 +80,7 @@ dwplot(results.direct, conf.level = 0.95, dodge_size = 0.6,
 dev.off()
 
 # Total effect
-pdf(".\\Plots\\ci_plot_final_total_short_weather.pdf", width = 10, height = 10*1.414)
+pdf(".\\Plots\\ci_plot_final_total.pdf", width = 10, height = 10*1.414)
 dwplot(results.total, conf.level = 0.95, dodge_size = 0.6, 
        vars_order = c("FE r", "FE growth.new.cases",  
                       "DFE r", "DFE growth.new.cases", 
@@ -121,7 +121,7 @@ data.case = rename(data.case, casegrowth = Y)
 
 # Merge data and adjust data type and input the abbreviations of the cantons. Also compute correlation
 data = merge(data.r, data.case)
-dates = rep(seq(as.Date("2020-07-06"), as.Date("2020-10-18"), by = "week"), 26)
+dates = rep(seq(as.Date("2020-07-06"), as.Date("2020-12-20"), by = "week"), 26)
 data = data %>%
   group_by(X.Canton_3) %>%
   mutate(correl = sprintf("italic(rho) == %.2f", round(cor(median_R_mean, casegrowth), 2)),
@@ -169,7 +169,7 @@ data = data %>%
 
 # Plot
 Sys.setlocale("LC_TIME", "English")
-pdf(".\\Plots\\r-case-compare_short.pdf", width = 10, height = 10*1.414)
+pdf(".\\Plots\\r-case-compare_final.pdf", width = 10, height = 10*1.414)
 data %>% ggplot() +
   geom_line(aes(x = date, y = median_R_mean, colour = "#1B9E77"), size = 0.75) +
   geom_line(aes(x = date, y = casegrowth, colour = "#E7298A"), size = 0.75) +
@@ -177,8 +177,10 @@ data %>% ggplot() +
   geom_vline(xintercept=as.Date("2020-08-01"),linetype = "dashed", color = "gray")+
   geom_vline(xintercept=as.Date("2020-09-01"),linetype = "dashed", color = "gray")+
   geom_vline(xintercept=as.Date("2020-10-01"),linetype = "dashed", color = "gray")+
+  geom_vline(xintercept=as.Date("2020-11-01"),linetype = "dashed", color = "gray")+
+  geom_vline(xintercept=as.Date("2020-12-01"),linetype = "dashed", color = "gray")+
   facet_wrap(~ X.Canton_3, ncol = 3) +
-  geom_text(x = as.Date("2020-08-10"), y = 3.6, aes(label = correl), parse = TRUE, data = data, size = 4.5,
+  geom_text(x = as.Date("2020-11-10"), y = 3.6, aes(label = correl), parse = TRUE, data = data, size = 4.5,
             check_overlap = TRUE) +
   xlab("") +
   ylab("") +
@@ -272,80 +274,6 @@ dev.off()
 # do hence not offer more insight. We also do not include the additional information variables and we focus on the total effect.
 
 
-
-# Parameters to loop over
-freq.poss = c("daily", "weekly")
-response.poss = c("median_R_mean", "casegrowth")
-
-# Allocation of results
-results.list.fe = vector("list", 4)
-i = 1
-
-
-for (frequency in freq.poss) {
-  
-  for (response in response.poss) {
-    
-    results.list.fe[[i]] = estimation(frequency = frequency, response = response, model = "within", infovar = FALSE, type.effect = "total")$fit
-    i = i+1
-  }
-}
-
-# Run the function diagnostics for all the fits
-for (k in 1:length(results.list.fe)) {
-  
-  if (k == 1) {
-    
-    response = "median_R_mean"
-    frequency = "daily"
-  } else if (k == 2) {
-    
-    response = "casegrowth"
-    frequency = "daily" 
-  } else if (k == 3) {
-    
-    response = "median_R_mean"
-    frequency = "weekly"
-  } else if (k == 4) {
-    
-    response = "casegrowth"
-    frequency = "weekly"
-  }
-  
-  # Run diagnostics
-  diag.res = diagnostics(fit = results.list.fe[[k]], frequency = frequency, response = response, infovar = FALSE, type.effect = "total")
-  data = diag.res[["data"]]
-  outliers = data[names(diag.res[["influential"]]),]
-  id = rownames(outliers)
-  
-  data$infl = ifelse(rownames(data) %in% id, 1, 0)
-  infl = as.vector(data$infl)
-  
-  # Data of fitted and residuals with indicator if observation is influential
-  data.plot = data.frame(diag.res[["preds"]], diag.res[["res"]], infl)
-  colnames(data.plot) = c("Predicted.values", "Residuals", "Influential")
-  
-  # Plot fitted vs. residuals
-  filename = paste("fittedres", k, ".pdf", sep = "")
-  pdf(filename, width = 6, height = 6)
-  print(ggplot(data = data.plot) +
-          geom_point(aes(x = Predicted.values, y = Residuals),
-                     position = position_jitter(h = 0.1, w = 0.1), alpha = 0.5, size = 3,
-                     colour = "gray70") +
-          geom_hline(yintercept = 0, colour = "grey60", linetype = 2) +
-          geom_smooth(data = data.plot, mapping = aes(x = Predicted.values, y = Residuals), method = "loess", se = FALSE, formula = y ~ x,
-                      colour = "#E7298A", fullrange = TRUE) +
-          theme_bw() +
-          xlab("Predicted values") +
-          ylab("Residuals") +
-          theme(text = element_text(color = "black", size = 12),
-                legend.text = element_text(color = "black", size = 12),
-                plot.title = element_text(hjust = 0.5)))
-  dev.off()
-}
-
-# New plots!
-
 # Total effect
 # Parameters to loop over
 names = c("RE r total", "RE growth.new.cases total", "FE r total", "FE growth.new.cases total", "DFE r total", "DFE growth.new.cases total")
@@ -361,7 +289,8 @@ for (model in model.poss) {
   
   for (response in response.poss) {
     
-    results.list.ta[[i]] = estimation(frequency = "weekly", response = response, model = model, infovar = FALSE, type.effect = "total")$fit
+    results.list.ta[[i]] = estimation(frequency = "weekly", response = response, model = model, infovar = FALSE, type.effect = "total",
+                                      lag.one = FALSE)$fit
     i = i+1
   }
 }
@@ -370,7 +299,8 @@ for (model in model.poss) {
 # Debiased fixed effects
 for (response in response.poss) {
   
-  results.list.ta[[i]] = list(multiple_split(response = response, frequency = "weekly", infovar = FALSE, type.effect = "total"),
+  results.list.ta[[i]] = list(multiple_split(response = response, frequency = "weekly", infovar = FALSE, type.effect = "total",
+                                             lag.one = FALSE),
                               frequency = "weekly",
                               response = response,
                               model = "debiased",
@@ -396,7 +326,7 @@ for (k in 1:length(results.list.ta)) {
     X = as.matrix(vars[,-1])
     cols.X = colnames(X)
     X.demeaned = as.matrix(data[,(colnames(data) %in% cols.X)])
-    X.demeaned = as.matrix(X.demeaned[,c(1,2,6,7,8,3,4,5,10,9)]) # Order
+    X.demeaned = as.matrix(X.demeaned[,c(1,5,6,7,2,3,4,9,8)]) # Order
     y.demeaned = data[,"Y"]
     
     coef = as.vector(results.list.ta[[5]][[1]])
@@ -413,7 +343,7 @@ for (k in 1:length(results.list.ta)) {
     X = as.matrix(vars[,-1])
     cols.X = colnames(X)
     X.demeaned = as.matrix(data[,(colnames(data) %in% cols.X)])
-    X.demeaned = as.matrix(X.demeaned[,c(1,2,6,7,8,3,4,5,10,9)]) # Order
+    X.demeaned = as.matrix(X.demeaned[,c(1,5,6,7,2,3,4,9,8)]) # Order
     y.demeaned = data[,"Y"]
     
     coef = as.vector(results.list.ta[[5]][[1]])
@@ -426,7 +356,7 @@ for (k in 1:length(results.list.ta)) {
   colnames(data.plot) = c("Predictions", "Residuals")
   
   # Plot fitted vs. residuals
-  filename = paste("fittedres_total_short", k, ".pdf", sep = "")
+  filename = paste("fittedres_total_final", k, ".pdf", sep = "")
   pdf(filename, width = 6, height = 6)
   print(ggplot(data = data.plot) +
           geom_point(aes(x = predicted, y = residuals),
@@ -459,7 +389,8 @@ for (model in model.poss) {
   
   for (response in response.poss) {
     
-    results.list.ta[[i]] = estimation(frequency = "weekly", response = response, model = model, infovar = FALSE, type.effect = "direct")$fit
+    results.list.ta[[i]] = estimation(frequency = "weekly", response = response, model = model, infovar = FALSE, type.effect = "direct",
+                                      lag.one = FALSE)$fit
     i = i+1
   }
 }
@@ -468,7 +399,8 @@ for (model in model.poss) {
 # Debiased fixed effects
 for (response in response.poss) {
   
-  results.list.ta[[i]] = list(multiple_split(response = response, frequency = "weekly", infovar = FALSE, type.effect = "direct"),
+  results.list.ta[[i]] = list(multiple_split(response = response, frequency = "weekly", infovar = FALSE, type.effect = "direct",
+                                             lag.one = FALSE),
                               frequency = "weekly",
                               response = response,
                               model = "debiased",
@@ -493,7 +425,7 @@ for (k in 1:length(results.list.ta)) {
     X = as.matrix(vars[,-1])
     cols.X = colnames(X)
     X.demeaned = as.matrix(data[,(colnames(data) %in% cols.X)])
-    X.demeaned = as.matrix(X.demeaned[,c(1,2,7,8,9,3,4,5,11,10,6)]) # Order
+    X.demeaned = as.matrix(X.demeaned[,c(1,6,7,8,2,3,4,10,9,5)]) # Order
     y.demeaned = data[,"Y"]
     
     coef = as.vector(results.list.ta[[5]][[1]])
@@ -510,7 +442,7 @@ for (k in 1:length(results.list.ta)) {
     X = as.matrix(vars[,-1])
     cols.X = colnames(X)
     X.demeaned = as.matrix(data[,(colnames(data) %in% cols.X)])
-    X.demeaned = as.matrix(X.demeaned[,c(1,2,7,8,9,3,4,5,11,10,6)]) # Order
+    X.demeaned = as.matrix(X.demeaned[,c(1,6,7,8,2,3,4,10,9,5)]) # Order
     y.demeaned = data[,"Y"]
     
     coef = as.vector(results.list.ta[[6]][[1]])
@@ -523,7 +455,7 @@ for (k in 1:length(results.list.ta)) {
   colnames(data.plot) = c("Predictions", "Residuals")
   
   # Plot fitted vs. residuals
-  filename = paste("fittedres_direct_short", k, ".pdf", sep = "")
+  filename = paste("fittedres_direct_final", k, ".pdf", sep = "")
   pdf(filename, width = 6, height = 6)
   print(ggplot(data = data.plot) +
           geom_point(aes(x = predicted, y = residuals),
@@ -619,14 +551,14 @@ data = data %>%
   select(geoRegion, facialCover, datum) %>%
   mutate(datum = as.Date(datum),
          facialCover = facialCover - 2) %>%
-  filter(datum >= "2020-07-06" & datum <= "2020-10-25")
+  filter(datum >= "2020-07-06" & datum <= "2020-12-20")
 
 # Plot
-pdf(".\\Plots\\policy_fraction_short.pdf", width = 20, height = 10)
+pdf(".\\Plots\\policy_fraction_final.pdf", width = 20, height = 10)
 ggplot(data = data, mapping = aes(x = datum, y = facialCover, group = geoRegion)) +
   geom_line(size = 1.5) +
   geom_line(data = dat.new %>% mutate(datum = as.Date(datum),
-                                      facialCover = facialCover - 2) %>% filter(datum >= "2020-07-06" & datum <= "2020-10-25" & geoRegion == "CH"),
+                                      facialCover = facialCover - 2) %>% filter(datum >= "2020-07-06" & datum <= "2020-12-20" & geoRegion == "CH"),
             mapping = aes(x = datum, y = facialCover), color = "firebrick", size = 2.5) +
   geom_segment(aes(x = as.Date(c("2020-08-20")), y = 0.79-1, xend  = as.Date(c("2020-08-20")), yend = 0.99-1), data = data,
                colour = "grey", linetype = 1, size = 0.75) +
@@ -690,6 +622,81 @@ ggplot(data, aes(x = date, y = Y, color = factor(W_bin))) +
     legend.spacing = unit(0.3, "cm")  
   )
 dev.off()
+
+
+# Old diagnostics
+# Parameters to loop over
+freq.poss = c("daily", "weekly")
+response.poss = c("median_R_mean", "casegrowth")
+
+# Allocation of results
+results.list.fe = vector("list", 4)
+i = 1
+
+
+for (frequency in freq.poss) {
+
+  for (response in response.poss) {
+
+    results.list.fe[[i]] = estimation(frequency = frequency, response = response, model = "within", infovar = FALSE, type.effect = "total",
+                                      lag.one = FALSE)$fit
+    i = i+1
+  }
+}
+
+# Run the function diagnostics for all the fits
+for (k in 1:length(results.list.fe)) {
+
+  if (k == 1) {
+
+    response = "median_R_mean"
+    frequency = "daily"
+  } else if (k == 2) {
+
+    response = "casegrowth"
+    frequency = "daily"
+  } else if (k == 3) {
+
+    response = "median_R_mean"
+    frequency = "weekly"
+  } else if (k == 4) {
+
+    response = "casegrowth"
+    frequency = "weekly"
+  }
+
+  # Run diagnostics
+  diag.res = diagnostics(fit = results.list.fe[[k]], frequency = frequency, response = response, infovar = FALSE, type.effect = "total",
+                         lag.one = FALSE)
+  data = diag.res[["data"]]
+  outliers = data[names(diag.res[["influential"]]),]
+  id = rownames(outliers)
+
+  data$infl = ifelse(rownames(data) %in% id, 1, 0)
+  infl = as.vector(data$infl)
+
+  # Data of fitted and residuals with indicator if observation is influential
+  data.plot = data.frame(diag.res[["preds"]], diag.res[["res"]], infl)
+  colnames(data.plot) = c("Predicted.values", "Residuals", "Influential")
+
+  # Plot fitted vs. residuals
+  filename = paste("fittedres", k, ".pdf", sep = "")
+  pdf(filename, width = 6, height = 6)
+  print(ggplot(data = data.plot) +
+          geom_point(aes(x = Predicted.values, y = Residuals),
+                     position = position_jitter(h = 0.1, w = 0.1), alpha = 0.5, size = 3,
+                     colour = "gray70") +
+          geom_hline(yintercept = 0, colour = "grey60", linetype = 2) +
+          geom_smooth(data = data.plot, mapping = aes(x = Predicted.values, y = Residuals), method = "loess", se = FALSE, formula = y ~ x,
+                      colour = "#E7298A", fullrange = TRUE) +
+          theme_bw() +
+          xlab("Predicted values") +
+          ylab("Residuals") +
+          theme(text = element_text(color = "black", size = 12),
+                legend.text = element_text(color = "black", size = 12),
+                plot.title = element_text(hjust = 0.5)))
+  dev.off()
+}
 ################################################################################
 
 

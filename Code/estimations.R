@@ -56,7 +56,8 @@ for (frequency in freq.poss) {
       
       for (type.effect in type.effect.poss) {
         
-        results.list.fe[[i]] = list(results = estimation(frequency = frequency, response = response, model = model, infovar = FALSE, type.effect = type.effect),
+        results.list.fe[[i]] = list(results = estimation(frequency = frequency, response = response, model = model, infovar = FALSE, type.effect = type.effect,
+                                                         lag.one = FALSE),
                                     frequency = frequency,
                                     response = response,
                                     model = model,
@@ -78,7 +79,8 @@ for (frequency in freq.poss) {
   
   for (type.effect in type.effect.poss) {
     
-    results.list.fe.infovar[[i]] = list(estimation(frequency = frequency, response = "casegrowth", model = "random", infovar = TRUE, type.effect = type.effect),
+    results.list.fe.infovar[[i]] = list(estimation(frequency = frequency, response = "casegrowth", model = "random", infovar = TRUE, type.effect = type.effect,
+                                                   lag.one = FALSE),
                                         frequency = frequency,
                                         response = "casegrowth",
                                         model = "random",
@@ -98,7 +100,8 @@ for (frequency in freq.poss) {
     
     for(type.effect in type.effect.poss) {
       
-      results.list.dfe[[i]] = list(multiple_split(response = response, frequency = frequency, infovar = FALSE, type.effect = type.effect),
+      results.list.dfe[[i]] = list(multiple_split(response = response, frequency = frequency, infovar = FALSE, type.effect = type.effect,
+                                                  lag.one = FALSE),
                                    frequency = frequency,
                                    response = response,
                                    model = "debiased",
@@ -123,7 +126,8 @@ for (frequency in freq.poss) {
       
       for (type.effect in type.effect.poss) {
         
-        results.list.dml[[i]] = list(dml.estim(response = response, frequency = frequency, infovar = infovar, type.effect = type.effect),
+        results.list.dml[[i]] = list(dml.estim(response = response, frequency = frequency, infovar = infovar, type.effect = type.effect,
+                                               lag.one = FALSE),
                                      response = response,
                                      frequency = frequency,
                                      infovar = infovar,
@@ -142,11 +146,11 @@ i = 1
 # Run the bootstrap with B = 1000
 # Run the models
 for (frequency in freq.poss) {
-  
+
   for (response in response.poss) {
-    
+
     for (type.effect in type.effect.poss) {
-      
+
       results.list.bootstrap[[i]] = list(bs.estimation(frequency = frequency, response = response, infovar = FALSE, type.effect = type.effect),
                                          frequency = frequency,
                                          response = response,
@@ -333,6 +337,6 @@ results.dat = results.dat %>%
   filter(!(model != "HC3" & term == "RE Casegrowth")) 
 
 # Write csv
-write.csv(results.dat,"./Data/results_long_period_new.csv", row.names = FALSE)
+write.csv(results.dat,"./Data/results_long_period_new_1.csv", row.names = FALSE)
 
 

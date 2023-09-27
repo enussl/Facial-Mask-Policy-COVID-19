@@ -468,13 +468,15 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
   
 } # Data preparation
 
-construct.formula = function(response, frequency, model, infovar, type.effect) {
+construct.formula = function(response, frequency, model, infovar, type.effect,
+                             lag.one) {
   
   # response: in {casegrowth, median_R_mean}
   # frequency: in {daily, weekly}
   # model: in {pooling, within, random}
   # infovar: include additional info variables for case growth approach
   # type.effect: direct or total to include behavior variables or not
+  # lag.one: include lag one response variable
   
   # Output: depending on the three arguments, we generate a different formula, which we output here. This is e.g due
   # to time-invariant covariates, which we want to include for the RE but no for the FE approach.
@@ -539,6 +541,16 @@ construct.formula = function(response, frequency, model, infovar, type.effect) {
       formula = reformulate(attr(formula, "term.labels"), formula[[2]])
     }
     
+    # Adjust the formula if we want to include the lag-one response
+    if (lag.one == TRUE && response == "median_R_mean") {
+      formula = update(formula, "~.+ X.median_R_mean.lag1")
+    }
+    
+    # Adjust the formula if we want to include the lag-one response
+    if (lag.one == TRUE && response == "casegrowth") {
+      formula = update(formula, "~.+ X.casegrowthlag1")
+    }
+    
   } else {
     
     if (response == "median_R_mean") {
@@ -595,6 +607,16 @@ construct.formula = function(response, frequency, model, infovar, type.effect) {
       # Drop the variables and construct the new formula
       formula = drop.terms(terms(formula), dropx = remove.vars, keep.response = TRUE)
       formula = reformulate(attr(formula, "term.labels"), formula[[2]])
+    }
+    
+    # Adjust the formula if we want to include the lag-one response
+    if (lag.one == TRUE && response == "median_R_mean") {
+      formula = update(formula, "~.+ X.median_R_mean.lag1_we")
+    }
+    
+    # Adjust the formula if we want to include the lag-one response
+    if (lag.one == TRUE && response == "casegrowth") {
+      formula = update(formula, "~.+ X.casegrowthlag1_we")
     }
     
   } # Frequency
@@ -1048,7 +1070,7 @@ sd.Informal = function(adjacency.matrix, N.cant, y, X, beta.hat) {
               rho.mean = rho.mean))
 } 
 
-compute.se = function(fit, model, frequency, response, infovar, type.effect) {
+compute.se = function(fit, model, frequency, response, infovar, type.effect, lag.one) {
   
   # fit: = fitted model (plm object)
   # model: in {within, random, pooling}
@@ -1057,6 +1079,7 @@ compute.se = function(fit, model, frequency, response, infovar, type.effect) {
   # model: in {within, random, pooling}
   # infovar: additional information variables
   # type.effect: direct or total to include behavior variables or not
+  # lag.one: include lag-one response variable
   
   # Output: covariance matrix of estimated coefficients for all the different estimators
   
@@ -1094,7 +1117,8 @@ compute.se = function(fit, model, frequency, response, infovar, type.effect) {
                      response = response, frequency = frequency)
     
     # Generate formula for the model 
-    formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect)
+    formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect,
+                                lag.one = lag.one)
     
     # Select y, X and save beta.hat from the fitted model
     y = as.vector(data$Y)
@@ -1138,20 +1162,22 @@ compute.se = function(fit, model, frequency, response, infovar, type.effect) {
   
 } # Compute.se
 
-estimation = function(frequency, response, model, infovar, type.effect) {
+estimation = function(frequency, response, model, infovar, type.effect, lag.one) {
   
   # frequency: in {daily, weekly}
   # response: response variable in {median_R_mean, casegrowth}
   # model: in {pooling, within, random}
   # infovar: include additional information variables for case-growth approach
-  #type.effect: direct or total to include behavior variables or not
+  # type.effect: direct or total to include behavior variables or not
+  # lag.one: include lag one response variable
   
   # Output: list of (i) results (regression results depending on covariance matrix estimator)
   #                 (ii) initial fitted model
   #                 (iii) inputted data
   
   # Store formula
-  formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect,
+                              lag.one = lag.one)
   
   # Store data; change configuration of data processing here to examine lag, shift and r.infovar
   data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
@@ -1173,7 +1199,7 @@ estimation = function(frequency, response, model, infovar, type.effect) {
   
   # Refit the results with the robust covariance matrix estimates
   cov.matrices = compute.se(fit = fit, model = model, frequency = frequency, response = response, 
-                            infovar = infovar, type.effect = type.effect)
+                            infovar = infovar, type.effect = type.effect, lag.one = lag.one)
   results = vector("list", 7)
   
   for (j in 1:length(results)) {
@@ -1186,12 +1212,13 @@ estimation = function(frequency, response, model, infovar, type.effect) {
               data = data))
 } # Estimation
 
-multiple_split = function(response, frequency, infovar, type.effect) {
+multiple_split = function(response, frequency, infovar, type.effect, lag.one) {
   
   # response: response variable in {median_R_mean, casegrowth}
   # frequency: frequency in {daily, weekly}
   # infovar: add additional information variables
   # type.effect: direct or total to include behavior variables or not
+  # lag.one: include lag one response variable
   
   # Output: bias.corrected estimate of mask policy
   
@@ -1199,7 +1226,8 @@ multiple_split = function(response, frequency, infovar, type.effect) {
   data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
   
   # Store formula
-  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect,
+                              lag.one = lag.one)
   
   # Number of splits along the cross-section
   s = 500
@@ -1252,6 +1280,7 @@ multiple_split = function(response, frequency, infovar, type.effect) {
     }
     common_coef_names = intersect(names(coef(cross1)), names(coef(cross2))) # all of them in both samples
     print(length(common_coef_names))
+    print(common_coef_names)
     for (coef_name in common_coef_names) {
       coef_cross1 = coef(cross1)[coef_name]
       coef_cross2 = coef(cross2)[coef_name]
@@ -1304,7 +1333,8 @@ bootstat_fe = function(data) {
   # Output: estimated coefficients; this function is the statistic used in the bootstrap
   
   # Fix the model to within
-  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect,
+                              lag.one = FALSE)
   
   if (frequency == "daily") {
     
@@ -1335,6 +1365,7 @@ bs.estimation = function(response, frequency, infovar, type.effect) {
   # frequency: daily or weekly
   # infovar: additional information variables added
   # type.effect: direct or total to include behavior variables or not
+
   
   # Output: point estimate of W and bootstrapped standard errors
   
@@ -1384,12 +1415,13 @@ bs.estimation = function(response, frequency, infovar, type.effect) {
   return(tab)
 }
 
-dml.estim = function(response, frequency, infovar, type.effect) {
+dml.estim = function(response, frequency, infovar, type.effect, lag.one) {
   
   # frequency: in {daily, weekly}
   # response: response variable
   # infovar: additional information variables 
   # type.effect: direct or total to include behavior variables or not
+  # lag.one: include lag one response variable
   
   # Output: list of B, point estimate of W, call and basic confidence interval for W
   
@@ -1401,7 +1433,8 @@ dml.estim = function(response, frequency, infovar, type.effect) {
   data = dummy_cols(data, select_columns = "X.oneweek")
   
   # Store formula and extract y, X, W
-  formula = construct.formula(response = response, frequency = frequency, model = "pooling", infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = "pooling", infovar = infovar, type.effect = type.effect,
+                              lag.one = lag.one)
   x_cols = c(labels(terms(formula)), paste("X.oneweek", sep = "_", min(data$X.oneweek):max(data$X.oneweek)))
   x_cols = x_cols[!x_cols %in% c("W")]
   y_col  = "Y"
@@ -1479,13 +1512,14 @@ r.sq = function(fit, frequency, response) {
   return((sst - sse)/sst)
 }
 
-diagnostics = function(fit, frequency, response, infovar, type.effect) {
+diagnostics = function(fit, frequency, response, infovar, type.effect, lag.one) {
   
   # fit: fit of plm model
   # frequency: in {daily, weekly}
   # response: response variable
   # infovar: additional information variables
   # type.effect: direct or total to include behavior variables or not
+  # lag.one: include lag one response variable
   
   # Output: estimate of W from fixed effects approach of with full data and data restricted on cooks distance
   
@@ -1523,7 +1557,8 @@ diagnostics = function(fit, frequency, response, infovar, type.effect) {
                    response = response, frequency = frequency)
   
   # Store formula
-  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect)
+  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect,
+                              lag.one = lag.one)
   
   # Run fixed effects regression via lm
   fit.original = lm(formula, data = data)

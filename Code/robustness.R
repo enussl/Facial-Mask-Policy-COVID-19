@@ -36,6 +36,7 @@ source("./Code/helperfunctions.R")
 #     - (8) Briefly touch on the alternative method to compute the weekly case growth to stress the similarity with the R value (only in text form)
 #     - (9) Short period where the cantonal heterogeneity was most present (August to October)
 #     - (10) Double Machine Learning approaches
+#     - (11) Add lag-1 response variables
 
 # Below, we report the point estimate, std.error and p.value concerning W for all these alterations.
 
@@ -800,10 +801,104 @@ multiple_split_short(response = "median_R_mean", frequency = "weekly", infovar =
 
 ################################################################################
 
+# (11) Add lag-1 response variable
+
+response.poss = c("median_R_mean", "casegrowth")
+model.poss = c("within", "random")
+
+# Allocation of results
+results.list.lag = vector("list", 4)
+i = 1
+
+# Run the models
+for (response in response.poss) {
+  
+  for (model in model.poss) {
+    
+    results.list.lag[[i]] = list(results = estimation(frequency = "weekly", response = response, model = model, infovar = FALSE, type.effect = "total",
+                                                     lag.one = TRUE),
+                                frequency = "weekly",
+                                response = response,
+                                model = model,
+                                type.effect = "total")
+    i = i+1
+  }
+}
+
+
+# Run the de-biased models via multiple sample splitting
+results.list.lag.dfe = vector("list", 2)
+i = 1
+
+# Run the models
+for (response in response.poss) {
+  
+  results.list.lag.dfe[[i]] = list(multiple_split(response = response, frequency = "weekly", infovar = FALSE, type.effect = "total",
+                                              lag.one = TRUE),
+                               frequency = "weekly",
+                               response = response,
+                               model = "debiased",
+                               type.effect = "total")
+  i = i+1
+}
+
+# Run the double machine learning
+results.list.lag.dml = vector("list", 2)
+i = 1
+
+# Run the models
+for (response in response.poss) {
+        
+    results.list.lag.dml[[i]] = list(dml.estim(response = response, frequency = "weekly", infovar = TRUE, type.effect = "total",
+                                           lag.one = TRUE),
+                                 response = response,
+                                 frequency = "weekly",
+                                 infovar = TRUE,
+                                 type.effect = "total")
+    i = i+1
+}
+
+
+results.lag = matrix(NA, nrow = 8, ncol = 3)
+colnames(results.lag) = c("estimate", "std.error", "p.val")
+results.lag[1,1] = results.list.lag[[1]][["results"]][["results"]][[4]][["W",1]] # fe R
+results.lag[1,2] = results.list.lag[[1]][["results"]][["results"]][[4]][["W",2]]
+results.lag[1,3] = results.list.lag[[1]][["results"]][["results"]][[4]][["W",4]]
+
+results.lag[2,1] = results.list.lag[[2]][["results"]][["results"]][[4]][["W",1]] # re R
+results.lag[2,2] = results.list.lag[[2]][["results"]][["results"]][[4]][["W",2]]
+results.lag[2,3] = results.list.lag[[2]][["results"]][["results"]][[4]][["W",4]]
+
+results.lag[3,1] = results.list.lag[[3]][["results"]][["results"]][[4]][["W",1]] # fe case
+results.lag[3,2] = results.list.lag[[3]][["results"]][["results"]][[4]][["W",2]]
+results.lag[3,3] = results.list.lag[[3]][["results"]][["results"]][[4]][["W",4]]
+
+results.lag[4,1] = results.list.lag[[4]][["results"]][["results"]][[4]][["W",1]] # re case
+results.lag[4,2] = results.list.lag[[4]][["results"]][["results"]][[4]][["W",2]]
+results.lag[4,3] = results.list.lag[[4]][["results"]][["results"]][[4]][["W",4]]
+
+results.lag[5,1] = results.list.lag.dfe[[1]][[1]][["W"]] # dfe r
+results.lag[5,2] = results.list.lag[[1]][["results"]][["results"]][[4]][["W",2]]
+results.lag[5,3] = 2*(1-pnorm(abs(results.lag[5,1]/results.lag[5,2])))
+
+results.lag[6,1] = results.list.lag.dfe[[2]][[1]][["W"]] # dfe case
+results.lag[6,2] = results.list.lag[[3]][["results"]][["results"]][[4]][["W",2]]
+results.lag[6,3] = 2*(1-pnorm(abs(results.lag[6,1]/results.lag[6,2])))
+
+results.lag[7,1] = results.list.lag.dml[[1]][[1]][1] # dml R
+results.lag[7,2] = results.list.lag.dml[[1]][[1]][2]
+results.lag[7,3] = results.list.lag.dml[[1]][[1]][4]
+
+results.lag[8,1] = results.list.lag.dml[[2]][[1]][1] # dml case
+results.lag[8,2] = results.list.lag.dml[[2]][[1]][2]
+results.lag[8,3] = results.list.lag.dml[[2]][[1]][4]
+
+################################################################################
+
 # Construct the main table and safe the results as a csv file
 results.robustnesscheck = rbind(results.month[c(1,3,5,6),], results.infovar, results.halfcanton,
                                 results.rinfovar, results.casetiming,
-                                results.cooks[,1:3], results.shortperiod)
+                                results.cooks[,1:3], results.shortperiod, results.lag)
 
 write.csv(results.robustnesscheck,".\\Data\\results.robustnesschecks.csv", row.names = TRUE)
 
