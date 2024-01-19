@@ -9,29 +9,16 @@
 # Empty environment
 rm(list = ls())
 
-# Set working directory to the root node of folder structure
-#setwd(".\\Mask_Project\\Final")
-setwd("C:/Users/eminu/OneDrive/Desktop/Facial-Mask-Policy-COVID-19")
-
-# Read helper functions. Note that they are in the same directory. Add the corresponding path
-# otherwise.
-#source(".\\Scripts\\helperfunctions.R")
 source("./Code/helperfunctions.R")
 
-
-# # Read in fonts
-# font_install("fontcm")
-# loadfonts()
 
 ################################################################################
 
 # (III) PLOTS
 
-# (i) CI Plots
+# (i) Treatment effects
 
-# Read in data; change col-names to correspond to dw-plot; make ordering consistent; remove those with additional 
-# information variables as well as the DML rows.
-results = read.csv(".\\Data\\results_long_period_new_1.csv", header = T, sep = ",", stringsAsFactors = FALSE)
+results = read.csv(".\\Data\\results.csv", header = T, sep = ",", stringsAsFactors = FALSE)
 results = results %>%
   filter(!model == "DML") %>%
   filter(!model == "Canton-Bootstrap") %>%
@@ -47,13 +34,10 @@ results[results == "Canton-Time"] = "Canton-Week"
 results[results == "Time"] = "Week"
 
 
-
 results.direct = results %>%
   filter(type.effect == "direct")
 results.total = results %>%
   filter(type.effect == "total")
-
-
 
 # Direct effect
 pdf(".\\Plots\\ci_plot_final_direct.pdf", width = 10, height = 10*1.414)
@@ -79,6 +63,7 @@ dwplot(results.direct, conf.level = 0.95, dodge_size = 0.6,
   geom_vline(xintercept = 0, colour = "grey60", linetype = 2) 
 dev.off()
 
+
 # Total effect
 pdf(".\\Plots\\ci_plot_final_total.pdf", width = 10, height = 10*1.414)
 dwplot(results.total, conf.level = 0.95, dodge_size = 0.6, 
@@ -103,6 +88,7 @@ dwplot(results.total, conf.level = 0.95, dodge_size = 0.6,
   geom_vline(xintercept = 0, colour = "grey60", linetype = 2) 
 dev.off()
 
+
 # (ii) Compare R and Case-growth
 
 # Read in data and prepare it
@@ -112,7 +98,6 @@ data.r = data.r %>%
   select(X.Canton_3, X.oneweek, Y, X.population_we)
 data.r = rename(data.r, median_R_mean = Y)
 
-# Shift = 11 for maximal correlation
 data.case = data.prep(lag = 7, shift = 14, response = "casegrowth", r.infovar = 21, frequency = "weekly")$data
 data.case = data.case %>%
   arrange(X.Canton_3, X.oneweek) %>%
@@ -129,15 +114,13 @@ data = data %>%
 data = cbind(data, dates)
 colnames(data) = c("X.Canton_3", "X.oneweek", "median_R_mean", "X.population_we", "casegrowth", "correl", "correl.num", "date")
 
-# Keep first (one) observation per canton to compute the correlation between the correlation of R and case-growth
-# and the population size
 data.corr = data %>%
   group_by(X.Canton_3) %>% 
   filter(row_number() == 1)
 
-corr.pop = cor(data.corr$correl.num, data.corr$X.population_we) # 0.57
-median.correl = median(data.corr$correl.num) # 0.585
-mean = mean(data.corr$correl.num) # 0.56
+corr.pop = cor(data.corr$correl.num, data.corr$X.population_we) 
+median.correl = median(data.corr$correl.num) 
+mean = mean(data.corr$correl.num) 
 
 data = data %>%                               
   mutate(X.Canton_3 = replace(X.Canton_3, X.Canton_3 == 2, "GE"),
@@ -167,7 +150,8 @@ data = data %>%
          X.Canton_3 = replace(X.Canton_3, X.Canton_3 == 7, "GR"),
          X.Canton_3 = replace(X.Canton_3, X.Canton_3 == 25, "TG"))
 
-# Plot
+
+# Plot time series
 Sys.setlocale("LC_TIME", "English")
 pdf(".\\Plots\\r-case-compare_final.pdf", width = 10, height = 10*1.414)
 data %>% ggplot() +
@@ -198,84 +182,9 @@ data %>% ggplot() +
 dev.off()
 
 
-# (iii) Pairwise correlation plot of variables
-
-# Read in data
-data.corrplot = data.prep(lag = 7, shift = 14, response = "median_R_mean", r.infovar = 21, frequency = "daily")$data
-data.corrplot = data.corrplot %>%
-  select(-c(X.day, X.Canton_3, Y, X.median_R_mean.lag)) %>%
-  relocate(W, .before = X.schoolClosing) %>%
-  relocate(X.percentage_age, .after = X.transactiongrowth) %>%
-  relocate(X.Density, .after = X.percentage_age) %>%
-  relocate(X.population, .after = X.Density) %>%
-  relocate(X.workplaces, .after = X.transit_stations)
-
-
-# Compute a measure of correlation between the variables. For two continuous variables, we use the Pearson correlation (in [-1,1]).
-# For two discrete variables, we use Cramers V and (in [0,1]). Lastly, we use use a simple regression of the continuous variable
-# on the discrete variable to obtain the R^2, which we multiply with the sign of the coefficient (in [-1,1]).
-
-# We first determine which variables are continuous and which are discrete
-vars.cont = c("X.grocery_and_pharmacy",  
-              "X.transit_stations", "X.transactiongrowth", "X.workplaces",
-              "X.sre000d0", "X.tre200d0", "X.ure200d0",
-              "X.population", "X.Density", "X.percentage_age")
-vars.disc = c("X.restGatherings", "X.schoolClosing", "X.cancEvents", "X.testingPolicy",
-              "X.workClosing2a", "W", "X.ferien")
-
-# Allocation
-corrmat = matrix(NA, nrow = ncol(data.corrplot), ncol = ncol(data.corrplot))
-colnames(corrmat) = rownames(corrmat) = colnames(data.corrplot)
-
-# Build the correlation measure matrix
-for (j in colnames(corrmat)) {
-  
-  for (k in rownames(corrmat)) {
-    
-    if (j %in% vars.cont && k %in% vars.cont) {
-      
-      corrmat[j,k] = cor(data.corrplot[,j], data.corrplot[,k])
-    }
-    
-    if (j %in% vars.cont && k %in% vars.disc | k %in% vars.cont && j %in% vars.disc) {
-      
-      r.squared = summary(lm(data.corrplot[,j] ~ data.corrplot[,k]))$r.squared
-      sign.coef = summary(lm(data.corrplot[,j] ~ data.corrplot[,k]))$coefficients[2]/abs(summary(lm(data.corrplot[,j] ~ data.corrplot[,k]))$coefficients[2])
-      corrmat[j,k] = sqrt(r.squared)*sign.coef
-      
-    }
-    
-    if (j %in% vars.disc && k %in% vars.disc) {
-      
-      corrmat[j,k] = cramerV(x = data.corrplot[,j], y = data.corrplot[,k])
-    }
-  }
-}  
-
-# Correlation with itself
-diag(corrmat) = 1
-
-# Nice column names for the plot
-colnames(corrmat) = rownames(corrmat) = c("Mask policy", "School closings", "Restrictions on gatherings",
-                                          "Cancellation of events", "Testing policy", "Work closings", "Mobility in grocery and pharmacy",
-                                          "Mobility in transit stations", "Mobility in workplaces", "Growth rate of transactions", "Percentage of old", 
-                                          "Population density", "Population", "Sunshine", "Temperature", "Humidity", "Holidays")
-
-# Plot
-pdf(".\\Plots\\corrmat.pdf", width = 12, height = 12)
-corrplot(corrmat, method = "color", addCoef.col = "black", addgrid.col = "gray50", pch.cex = 2,
-         tl.col = "black", number.cex = 0.8, number.font = 5, diag = FALSE)
-dev.off()
-
-# (iv) Diagnostics for all models in one plot
-
-# We create a plot where have fitted vs. residuals plots for all the fixed effects approaches. We therefore create 4 such plots
-# being FE Daily R, FE Daily Case-growth, FE Weekly R and FE Weekly Case-growth. The plots from the de-biased models do not differ and
-# do hence not offer more insight. We also do not include the additional information variables and we focus on the total effect.
-
+# (iii) Diagnostics for all models
 
 # Total effect
-# Parameters to loop over
 names = c("RE r total", "RE growth.new.cases total", "FE r total", "FE growth.new.cases total", "DFE r total", "DFE growth.new.cases total")
 model.poss = c("random", "within")
 response.poss = c("median_R_mean", "casegrowth")
@@ -351,7 +260,7 @@ for (k in 1:length(results.list.ta)) {
     residuals = as.numeric(y.demeaned - predicted)
   }
   
-  # create dataframe for ggplot
+  # Create dataframe for ggplot
   data.plot = data.frame(predicted, residuals)
   colnames(data.plot) = c("Predictions", "Residuals")
   
@@ -375,7 +284,6 @@ for (k in 1:length(results.list.ta)) {
 }
 
 # Direct effect
-# Parameters to loop over
 names = c("RE r direct", "RE growth.new.cases direct", "FE r direct", "FE growth.new.cases direct", "DFE r direct", "DFE growth.new.cases direct")
 model.poss = c("random", "within")
 response.poss = c("median_R_mean", "casegrowth")
@@ -473,80 +381,14 @@ for (k in 1:length(results.list.ta)) {
 }
 
 
-# (v) P-value heat-map
-
-# Read in data; change col-names to correspond to dw-plot; make ordering consistent
-results = read.csv(".\\Data\\results-05.csv", header = T, sep = ";", stringsAsFactors = FALSE)
-results = results %>%                               
-  mutate(model = replace(model, model == "Spatial", "Own"))
-results.direct = results[results[,"type.effect"] == "direct",]
-results.total = results[results[,"type.effect"] == "total",]
-results.direct = results.direct[,-6]
-results.total = results.total[,-6]
-results.total = results.total[c(1:4,6,5,7:nrow(results.total)),]
-colnames(results.direct) = colnames(results.total) = c("estimate", "std.error", "p.val", "model", "term")
-
-# Reshape for heat-map. Do it for the total effect
-data.pval = reshape(results.total, direction = "wide", idvar = "term", timevar = "model")
-order = c("FE Daily R", "FE Daily Casegrowth", "FE Weekly R", "FE Weekly Casegrowth", 
-          "DFE Daily R", "DFE Daily Casegrowth", "DFE Weekly R", "DFE Weekly Casegrowth",
-          "RE Daily R", "RE Daily Casegrowth", "RE Weekly R", "RE Weekly Casegrowth")
-data.pval = data.pval %>%
-  slice(match(order, term))
-row.names(data.pval) = data.pval[,1]
-data.pval = data.pval[,-1]
-data.pval = data.pval %>%
-  select(starts_with("p.val"))
-
-# Names 
-colnames(data.pval) = c("HC3", "Canton", "Time", "Canton-Time", "NW", "Own", "CH", "Canton-Bootstrap")
-
-# Heat-map
-pdf(".\\Plots\\pval.pdf", width = 12, height = 12)
-par(mar=c(5.1,10.5,4.1,2.1))
-plot(as.pvalue(as.matrix(data.pval)), fmt.cell ="%.6f", reorder = FALSE, na.print = FALSE, main = "",
-     col = brewer.pal(5, "Reds"), fmt.key = "%.2f",
-     xlab = "", ylab = "", na.col = "white", key = list(side = 3, cex.axis = 0.75),
-     polygon.key = NULL, axis.key = NULL, spacing.key = c(0.8,0.4,-0.5),
-     border = "black", axis.row = list(side = 2, las = 1))
-dev.off()
-
-# (VI) Create overview table of variables and add from which data source them stem from.
-# Do that for both the r-value and case-growth. Use all the variables, i.e the set of covariates used in the 
-# random effects models.
-
-for (response in c("median_R_mean", "casegrowth")) {
-  
-  # Store data
-  data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = "weekly")$data
-  
-  # Remove unused variables
-  cols.to.drop = c("X.Canton_3", "X.oneweek")
-  data.use = data[,!names(data) %in% cols.to.drop]
-  
-  # Extract the summary statistics for the variables  
-  sumstats = matrix(NA, nrow = 4, ncol = ncol(data.use))
-  colnames(sumstats) = colnames(data.use)
-  rownames(sumstats) = c("median", "mean", "min", "max")
-  
-  for (j in 1:ncol(data.use)) {
-    sumstats[1,j] = median(data.use[,j], na.rm = T)
-    sumstats[2,j] = mean(data.use[,j], na.rm = T)
-    sumstats[3,j] = min(data.use[,j], na.rm = T)
-    sumstats[4,j] = max(data.use[,j], na.rm = T)
-  }
-  
-}
-
-
-# (VI) Create plot for the adaptation of the strict facial mask policy of the cantons
+# (iv) Mask policy adaptation
 
 # Read in data
-DataCovid = read.csv(".\\Data\\DataCovid.csv") 
-dat.new = read.csv(".\\Data\\policy_stuff.csv", header = TRUE, sep = ",")
+covid = read.csv(".\\Data\\covid.csv") 
+policy = read.csv(".\\Data\\policy.csv", header = TRUE, sep = ",")
 
 # Merge data on common days
-data = merge(DataCovid, dat.new)
+data = merge(covid, policy)
 data = data %>% 
   select(geoRegion, facialCover, datum) %>%
   mutate(datum = as.Date(datum),
@@ -557,7 +399,7 @@ data = data %>%
 pdf(".\\Plots\\policy_fraction_final.pdf", width = 20, height = 10)
 ggplot(data = data, mapping = aes(x = datum, y = facialCover, group = geoRegion)) +
   geom_line(size = 1.5) +
-  geom_line(data = dat.new %>% mutate(datum = as.Date(datum),
+  geom_line(data = policy %>% mutate(datum = as.Date(datum),
                                       facialCover = facialCover - 2) %>% filter(datum >= "2020-07-06" & datum <= "2020-12-20" & geoRegion == "CH"),
             mapping = aes(x = datum, y = facialCover), color = "firebrick", size = 2.5) +
   geom_segment(aes(x = as.Date(c("2020-08-20")), y = 0.79-1, xend  = as.Date(c("2020-08-20")), yend = 0.99-1), data = data,
@@ -594,111 +436,4 @@ ggplot(data = data, mapping = aes(x = datum, y = facialCover, group = geoRegion)
         panel.border = element_blank()) 
 dev.off()
 
-
-# (VII) Development over time depending on mask policy
-library(Hmisc)
-startdate = as.Date("2020-07-06")
-data = data.prep(lag = 7, shift = 14, response = "median_R_mean", r.infovar = 21, frequency = "daily")$data %>%
-  mutate(W_bin = ifelse(W > 0, 1, 0),
-         date = startdate + X.day - 134) 
-
-pdf(".\\Plots\\over_time_policy.pdf", width = 20, height = 10)
-ggplot(data, aes(x = date, y = Y, color = factor(W_bin))) +
-  geom_point(alpha = ifelse(data$W_bin == 0, 0.3, 1)) +
-  stat_summary(
-    fun.data = "mean_sdl",
-    #fun.args = list(mult = 1.5),
-    geom = "line",
-    aes(group = factor(W_bin), size = factor(W_bin))
-  ) +
-  labs(x = "", y = "Effective Reproductive Number", color = "W", size = "") +
-  scale_color_manual(values = c("0" = "black", "1" = "firebrick")) +
-  scale_size_manual(values = c("0" = 1.2, "1" = 1.2)) +
-  guides(size = "none") +
-  theme_minimal() +
-  theme(
-    legend.position = "top",  
-    legend.title = element_blank(),
-    legend.spacing = unit(0.3, "cm")  
-  )
-dev.off()
-
-
-# Old diagnostics
-# Parameters to loop over
-freq.poss = c("daily", "weekly")
-response.poss = c("median_R_mean", "casegrowth")
-
-# Allocation of results
-results.list.fe = vector("list", 4)
-i = 1
-
-
-for (frequency in freq.poss) {
-
-  for (response in response.poss) {
-
-    results.list.fe[[i]] = estimation(frequency = frequency, response = response, model = "within", infovar = FALSE, type.effect = "total",
-                                      lag.one = FALSE)$fit
-    i = i+1
-  }
-}
-
-# Run the function diagnostics for all the fits
-for (k in 1:length(results.list.fe)) {
-
-  if (k == 1) {
-
-    response = "median_R_mean"
-    frequency = "daily"
-  } else if (k == 2) {
-
-    response = "casegrowth"
-    frequency = "daily"
-  } else if (k == 3) {
-
-    response = "median_R_mean"
-    frequency = "weekly"
-  } else if (k == 4) {
-
-    response = "casegrowth"
-    frequency = "weekly"
-  }
-
-  # Run diagnostics
-  diag.res = diagnostics(fit = results.list.fe[[k]], frequency = frequency, response = response, infovar = FALSE, type.effect = "total",
-                         lag.one = FALSE)
-  data = diag.res[["data"]]
-  outliers = data[names(diag.res[["influential"]]),]
-  id = rownames(outliers)
-
-  data$infl = ifelse(rownames(data) %in% id, 1, 0)
-  infl = as.vector(data$infl)
-
-  # Data of fitted and residuals with indicator if observation is influential
-  data.plot = data.frame(diag.res[["preds"]], diag.res[["res"]], infl)
-  colnames(data.plot) = c("Predicted.values", "Residuals", "Influential")
-
-  # Plot fitted vs. residuals
-  filename = paste("fittedres", k, ".pdf", sep = "")
-  pdf(filename, width = 6, height = 6)
-  print(ggplot(data = data.plot) +
-          geom_point(aes(x = Predicted.values, y = Residuals),
-                     position = position_jitter(h = 0.1, w = 0.1), alpha = 0.5, size = 3,
-                     colour = "gray70") +
-          geom_hline(yintercept = 0, colour = "grey60", linetype = 2) +
-          geom_smooth(data = data.plot, mapping = aes(x = Predicted.values, y = Residuals), method = "loess", se = FALSE, formula = y ~ x,
-                      colour = "#E7298A", fullrange = TRUE) +
-          theme_bw() +
-          xlab("Predicted values") +
-          ylab("Residuals") +
-          theme(text = element_text(color = "black", size = 12),
-                legend.text = element_text(color = "black", size = 12),
-                plot.title = element_text(hjust = 0.5)))
-  dev.off()
-}
 ################################################################################
-
-
-
-

@@ -12,9 +12,6 @@
 rm(list = ls())
 set.seed(42)
 
-# Set working directory to the root node of folder structure
-#setwd(".\\Mask_Project\\Final")
-setwd("C:/Users/eminu/OneDrive/Desktop/Facial-Mask-Policy-COVID-19")
 
 # Load used packages
 library(readr)
@@ -160,7 +157,6 @@ dlogd = function(x, id, t, lag, minval = 0.1) {
 data.prep = function(lag, shift, response, startdate = "2020-07-06",
                      enddate = "2020-12-20", r.infovar, frequency) {
   
-  # 2020-12-21
   
   # lag: smoothing of covariates of lag days
   # shift: shifting of response when using casegrowth as defined 
@@ -175,11 +171,11 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
   # first vaccinations took place on "2020-12-21". This is the reason for our sample selection.
   
   # Read in data
-  DataCovid = read.csv(".\\Data\\DataCovid.csv") 
-  dat.new = read.csv(".\\Data\\policy_stuff.csv", header = TRUE, sep = ",")
+  covid = read.csv(".\\Data\\covid.csv") 
+  policy = read.csv(".\\Data\\policy.csv", header = TRUE, sep = ",")
   
   # Merge data on common days
-  data = merge(DataCovid, dat.new)
+  data = merge(covid, policy)
   
   # Delete unnecessary variables to might lead to conflicts
   data = data %>%
@@ -219,7 +215,7 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
     # Lagged target variable
     data$casegrowthlag = dlogd(x = data$sumTotal, id = data$geoRegion, t = as.Date(data$datum), lag = lag)
     
-    # log Delta Cit with Cit; new cases
+    # log Delta Cit with Cit
     data$logdiffcases = lognozero(paneldiff(x = data$sumTotal, id = data$geoRegion, t = as.Date(data$datum), lag = lag))
     
     # Construct national aggregates
@@ -230,7 +226,7 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
     data = data %>%
       arrange(geoRegion)
     
-    # Lagged target variable on national level; works with id argument
+    # Lagged target variable on national level
     data$casegrowthlag.national = dlogd(x = data$sumTotalCH, id = data$geoRegion, t = as.Date(data$datum), lag = lag)
     
     # log Delta Cit; same as above but national level
@@ -247,9 +243,7 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
     data = data %>%
       filter(datum >= startdate & datum <= enddate)
     
-    # Change the ordering of cantons to adjust for the ordering of the adjacency matrix: we work with Canton_3 as the
-    # cantonal indicator later so we order the data along the list target where we input the ordering of the adjacency matrix
-    # used later so the data is ordered.
+    # Change the ordering of cantons to adjust for the ordering of the adjacency matrix
     target = c(2, 4, 5, 11, 3, 9, 17, 16, 22, 24, 20, 12, 8, 10, 6, 1, 15, 13, 14, 23, 18, 26, 21, 19, 7, 25)
     data = data %>% 
       slice(order(factor(Canton_3, levels = target)))
@@ -269,10 +263,6 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
   
   if (response == "casegrowth" && frequency == "weekly") {
     
-    # Construct target variable and lagged target variable. We do that by computing the new cases per canton and week. We can then
-    # compute the log-growth rate using that series, which constructs 7 times that same growth rate per canton and week. When aggregating, 
-    # we can then take the mean over disjoint weeks to obtain the desired variable. We do that for all growth rates.
-    
     # Construct national aggregates
     sumTotalCH = aggregate(data$sumTotal, by = list(data$datum), FUN  = sum)
     sumTotalCH = rename(sumTotalCH, datum = Group.1)
@@ -288,14 +278,6 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
              NewCases.national = c(0, diff(sumTotalCH))) %>%
       ungroup()
     
-    data = data %>%
-      relocate(sumTotal, .before = NewCases)
-    
-    # We now have all variables constant across oneweek and canton which need to be constant. The other ones
-    # are aggregated to weekly data by simply averaging the values per week and canton. Note that we take the sum
-    # for transactions and tests as we need the new number of transactions and tests per canton and week. These variables 
-    # already come supplied as new transactions and tests so we do not have to treat them as the cases where we had to explicitely 
-    # calculate the new cases as done in the above code.
     data = data %>%
       group_by(Canton_3, oneweek) %>%
       summarize(newcases_we           = sum(NewCases),
@@ -320,10 +302,8 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
                 mask_treat_we             = mean(mask_treat)) %>%
       ungroup()
     
-    # Using newcases_we, newcases.national_we, newtransactions_we and newtests_we, we can now compute the weekly growth rates.
     
     # Create the response variable and lead response variable. 
-    # Check if values are below the threshold of 0.1 and set it to 0.1 if so. Does not happen
     data$newcases_we[data$newcases_we < 0.1] = 0.1
     data$casegrowth_we = paneldiff(x = log(data$newcases_we), id = data$Canton_3, t = as.Date(data$oneweek), l = 1)
     data$casegrowth_we = panellag(x = data$casegrowth_we, i = data$Canton_3, t = as.Date(data$oneweek), lag = -shift/7)
@@ -335,7 +315,7 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
     # log Delta Cit
     data$logdiffcases_we = lognozero(paneldiff(x = data$newcases_we, id = data$Canton_3, t = as.Date(data$oneweek), lag = 1))
     
-    # Lagged target variable on national level; works with id argument
+    # Lagged target variable on national level
     data$newcases.national_we[data$newcases.national_we < 0.1] = 0.1
     data$casegrowthlag.national_we = paneldiff(x = log(data$newcases.national_we), id = data$Canton_3, t = as.Date(data$oneweek), l = 1)
     
@@ -354,9 +334,7 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
     data = data %>%
       filter(oneweek >= start.week & oneweek <= end.week)
     
-    # Change the ordering of cantons to adjust for the ordering of the adjacency matrix: we work with Canton_3 as the
-    # cantonal indicator later so we order the data along the list target where we input the ordering of the adjacency matrix
-    # used later so the data is ordered.
+    # Change the ordering of cantons to adjust for the ordering of the adjacency matrix
     target = c(2, 4, 5, 11, 3, 9, 17, 16, 22, 24, 20, 12, 8, 10, 6, 1, 15, 13, 14, 23, 18, 26, 21, 19, 7, 25)
     data = data %>% 
       slice(order(factor(Canton_3, levels = target)))
@@ -377,7 +355,6 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
     
     # lagged target variable
     data$median_R_mean.lag = panellag(x = data$median_R_mean, i = data$geoRegion, t = as.Date(data$datum), lag = r.infovar)
-    #data$median_R_mean.lag1 = panellag(x = data$median_R_mean, i = data$geoRegion, t = as.Date(data$datum), lag = 7)
     
     # Delta log transactions (one day rate)
     data$Number.of.transactions[data$Number.of.transactions < 0.1] = 0.1
@@ -387,9 +364,7 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
     data = data %>%
       filter(datum >= startdate & datum <= enddate)
     
-    # Change the ordering of cantons to adjust for the ordering of the adjacency matrix: we work with Canton_3 as the
-    # cantonal indicator later so we order the data along the list target where we input the ordering of the adjacency matrix
-    # used later so the data is ordered.
+    # Change the ordering of cantons to adjust for the ordering of the adjacency matrix
     target = c(2, 4, 5, 11, 3, 9, 17, 16, 22, 24, 20, 12, 8, 10, 6, 1, 15, 13, 14, 23, 18, 26, 21, 19, 7, 25)
     data = data %>% 
       slice(order(factor(Canton_3, levels = target)))
@@ -444,9 +419,7 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
     data = data %>%
       filter(oneweek >= start.week & oneweek <= end.week)
     
-    # Change the ordering of cantons to adjust for the ordering of the adjacency matrix: we work with Canton_3 as the
-    # cantonal indicator later so we order the data along the list target where we input the ordering of the adjacency matrix
-    # used later so the data is ordered.
+    # Change the ordering of cantons to adjust for the ordering of the adjacency matrix
     target = c(2, 4, 5, 11, 3, 9, 17, 16, 22, 24, 20, 12, 8, 10, 6, 1, 15, 13, 14, 23, 18, 26, 21, 19, 7, 25)
     data = data %>% 
       slice(order(factor(Canton_3, levels = target)))
@@ -468,6 +441,7 @@ data.prep = function(lag, shift, response, startdate = "2020-07-06",
   return(list(data = data.frame(X = X, Y = Y, W = W)))
   
 } # Data preparation
+
 
 construct.formula = function(response, frequency, model, infovar, type.effect,
                              lag.one) {
@@ -626,15 +600,14 @@ construct.formula = function(response, frequency, model, infovar, type.effect,
   return(formula)
 }
 
+
 tw.demean = function(data, response, frequency) {
   
   # data: data to two-way demean
   # response: response variable
   # frequency: in {daily, weekly} 
   
-  # Output: data but two-way demeaned as described in the paper. We need it for the Hansen covariance matrix estimator
-  # as well as for the informal estimator where we need the two-way demeaned y, X. The Frisch-Waugh-Lovell theorem allows us
-  # to compute the demeaning in that fashion (see https://stats.stackexchange.com/questions/200358/within-transformation-in-fixed-effect-regression-model).
+  # Output: data but two-way demeaned as described in the paper.
   
   # Discriminate between frequencies
   if (frequency == "daily") {
@@ -699,6 +672,7 @@ M.Andrews = function(rho, T){
   # Return M
   return(M)
 }
+
 
 sd.Thompson.Hansen = function(y, X, N.cant, beta.hat, M.T=2){
   
@@ -828,6 +802,7 @@ sd.Thompson.Hansen = function(y, X, N.cant, beta.hat, M.T=2){
   return(list(Var.Hansen= Var.Hansen, Var.Thompson=Var.Thompson, M = M))
 }
 
+
 create.A.init = function(){
   
   # Output: adjacency matrix of swiss cantons with the same ordering as our data
@@ -927,6 +902,7 @@ create.A.init = function(){
   return(A.init)
 }
 
+
 sd.Informal = function(adjacency.matrix, N.cant, y, X, beta.hat) {
   
   # adjacency.matrix: adjacency matrix as computed in create.A.init
@@ -951,7 +927,7 @@ sd.Informal = function(adjacency.matrix, N.cant, y, X, beta.hat) {
   
   # We firstly estimate the coefficient of time dependence as suggested by Hansen (2022)
   # through fitting an AR(1) on the time-sums St. To to this, we compute St and run the AR(1) regression
-  # to obtain rho.hat. We do not use St going forward.
+  # to obtain rho.hat.
   
   # S component from Hansen (2022)
   St = sapply(1:T.time, function(t){
@@ -1071,6 +1047,7 @@ sd.Informal = function(adjacency.matrix, N.cant, y, X, beta.hat) {
               rho.mean = rho.mean))
 } 
 
+
 compute.se = function(fit, model, frequency, response, infovar, type.effect, lag.one) {
   
   # fit: = fitted model (plm object)
@@ -1098,14 +1075,6 @@ compute.se = function(fit, model, frequency, response, infovar, type.effect, lag
   
   # Newey-West panel estimator
   hc.neweywest = vcovNW(fit)
-  
-  # Method white1 is needed to match the lm covariance matrix estimator vcovHC. Note that to match the results using lm,
-  # you have to use two-way demeaned data and a regression specification without an intercept.
-  
-  # The self-coded estimators (Hansen and informal) need (y, X) which need to be two-way demeaned for the 
-  # fixed effects model. In order to keep the neat structure of code where we only need to input the fit and the
-  # model into this function, we "reverse-engineer" which response and which frequency the fitted model is on. We then generate
-  # the two-way demeaned data accordingly. we do not do that for RE separately as we only use standard (HC3) estimator for RE.
   
   # Save data from fit
   data.from.fit = fit[["model"]]
@@ -1135,8 +1104,6 @@ compute.se = function(fit, model, frequency, response, infovar, type.effect, lag
   } # within
   
   
-  # Only return HAC estimator for RE model but 7 times to ensure conformity with functions as the dimension of 
-  # the output of the RE model is the same as for the one of the FE model when doing so.
   if (model == "random") {
     
     return(list(
@@ -1163,6 +1130,7 @@ compute.se = function(fit, model, frequency, response, infovar, type.effect, lag
   
 } # Compute.se
 
+
 estimation = function(frequency, response, model, infovar, type.effect, lag.one) {
   
   # frequency: in {daily, weekly}
@@ -1180,7 +1148,7 @@ estimation = function(frequency, response, model, infovar, type.effect, lag.one)
   formula = construct.formula(response = response, frequency = frequency, model = model, infovar = infovar, type.effect = type.effect,
                               lag.one = lag.one)
   
-  # Store data; change configuration of data processing here to examine lag, shift and r.infovar
+  # Store data
   data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
   
   # Fit model 
@@ -1212,6 +1180,7 @@ estimation = function(frequency, response, model, infovar, type.effect, lag.one)
               fit = fit,
               data = data))
 } # Estimation
+
 
 multiple_split = function(response, frequency, infovar, type.effect, lag.one) {
   
@@ -1279,9 +1248,10 @@ multiple_split = function(response, frequency, infovar, type.effect, lag.one) {
                    index = c("X.Canton_3", "X.oneweek"),effect = "twoways")
       
     }
-    common_coef_names = intersect(names(coef(cross1)), names(coef(cross2))) # all of them in both samples
+    common_coef_names = intersect(names(coef(cross1)), names(coef(cross2))) 
     print(length(common_coef_names))
     print(common_coef_names)
+    
     for (coef_name in common_coef_names) {
       coef_cross1 = coef(cross1)[coef_name]
       coef_cross2 = coef(cross2)[coef_name]
@@ -1289,7 +1259,6 @@ multiple_split = function(response, frequency, infovar, type.effect, lag.one) {
       result = (coef_cross1 + coef_cross2) / (2 * s)
       across[coef_name] = across[coef_name] + result
     }
-    #across = across + ((coef(cross1) + coef(cross2))/2)/s
   }
   
   # Average cross over corrected
@@ -1297,124 +1266,6 @@ multiple_split = function(response, frequency, infovar, type.effect, lag.one) {
   return(acbc)
 }
 
-data_wb = function(data, mle) {
-  
-  # data: data used
-  # mle: mandatory second argument to ran.gen
-  
-  # Output: data with added sweight for cantonal clustered multiplier bootstrap. We use exponential weights.
-  
-  # Two dimensions of the panel data
-  if (frequency == "daily") {
-    
-    n = length(unique(data$X.Canton_3))
-    t = length(unique(data$X.day))
-    
-  } else {
-    
-    n = length(unique(data$X.Canton_3))
-    t = length(unique(data$X.oneweek))
-  }
-  
-  # Exponentially distributed weights (multipliers)
-  multipliers = rexp(n)
-  
-  # For each state, weight is the same for all dates
-  weight = rep(multipliers/sum(multipliers), each = t)
-  
-  # Add to the data and treat it as sampling weight
-  data$sweight = weight
-  return(data)
-}
-
-bootstat_fe = function(data) {
-  
-  # data: data used
-  
-  # Output: estimated coefficients; this function is the statistic used in the bootstrap
-  
-  # Fix the model to within
-  formula = construct.formula(response = response, frequency = frequency, model = "within", infovar = infovar, type.effect = type.effect,
-                              lag.one = FALSE)
-  
-  if (frequency == "daily") {
-    
-    fit = plm(formula,
-              data = data, model = "within",
-              weights = sweight,
-              index = c("X.Canton_3", "X.day"),
-              effect = "twoways")
-  } else {
-    
-    fit = plm(formula,
-              data = data, model = "within",
-              weights = sweight,
-              index = c("X.Canton_3", "X.oneweek"),
-              effect = "twoways")
-  }
-  
-  # Store coefficients
-  tot = fit$coefficients
-  
-  # Return coefficients
-  return(unlist(tot))
-}
-
-bs.estimation = function(response, frequency, infovar, type.effect) {
-  
-  # response: response variable
-  # frequency: daily or weekly
-  # infovar: additional information variables added
-  # type.effect: direct or total to include behavior variables or not
-
-  
-  # Output: point estimate of W and bootstrapped standard errors
-  
-  # Load data and add variable sweight as initialization
-  data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
-  data$sweight = 1
-  
-  # Cores needed (run sufficiently quick on just 1) 
-  ncores = 1
-  
-  # Run bootstrap (500 replications)
-  result_boot = boot(data = data, statistic = bootstat_fe,
-                     sim = "parametric", ran.gen = data_wb, mle = 0,
-                     parallel = "multicore", ncpus = ncores, R = 1000)
-  
-  # Obtain the matrix of bootstrap estimates
-  result = structure(vapply(result_boot$t, as.double, numeric(1)), 
-                     dim = dim(result_boot$t))
-  
-  # Inference for W via basic bootstrap
-  ci = boot.ci(result_boot, index = 8, conf = 0.95, 
-               type = "basic")
-  
-  # Return basic confidence interval if desired. Un-comment the following code if so,
-  # which produces bootstrap standard errors to then construct confidence intervals via 
-  # the standard normal approximation. 
-  # return(ci)
-  
-  # Inference for W via standard errors and normal approximation
-  bse.standard = apply(result, 2, function(x) {
-    
-    # Standard error
-    return(sd(x))
-  })
-  
-  # Inference for W via robust errors and normal approximation
-  bse.robust = apply(result, 2, function(x) {
-    
-    # Standard error
-    return(mad(x))
-  })
-  
-  # Combine point estimate and standard errors
-  tab = rbind(result_boot$t0, bse.standard, bse.robust)
-  
-  # Return table
-  return(tab)
-}
 
 dml.estim = function(response, frequency, infovar, type.effect, lag.one) {
   
@@ -1425,9 +1276,6 @@ dml.estim = function(response, frequency, infovar, type.effect, lag.one) {
   # lag.one: include lag one response variable
   
   # Output: list of B, point estimate of W, call and basic confidence interval for W
-  
-  # Set seed 
-  set.seed(42)
   
   # Store data. Add weekly dummies to the double machine learning approach to capture time trends
   data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
@@ -1468,8 +1316,8 @@ dml.estim = function(response, frequency, infovar, type.effect, lag.one) {
   # Double Machine Learning
   dml_res = DoubleMLPLR$new(
     data = dml_data,
-    ml_g = forest, # Outcome model
-    ml_m = forest, # Treatment model 
+    ml_g = forest, 
+    ml_m = forest, 
     n_folds = 5,
     n_rep = 1,
     score = "partialling out",
@@ -1483,35 +1331,11 @@ dml.estim = function(response, frequency, infovar, type.effect, lag.one) {
   dml_res$coef
   dml_res$se
   
-  # Nuisance parameters
-  #pred.nuisance = dml_res$predictions
-  #hist(pred.nuisance[["ml_g"]])
-  #hist(pred.nuisance[["ml_m"]], breaks = 60)
-  
-  # Return the results 
+  # Return 
   return(dml_res$summary())
   
 }
 
-r.sq = function(fit, frequency, response) {
-  
-  # fit: fit of plm model
-  # frequency: in {daily, weekly}
-  # response: response variable
-  
-  # Output: R^2 for plm model. We need the original data and not the two-way demeaned data
-  # so we store them using data.prep
-  
-  # Store data
-  data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data
-  
-  # SST and SSE
-  sst = sum((data$Y - mean(data$Y))^2)
-  sse = t(residuals(fit))%*%residuals(fit)
-  
-  # Return R^2
-  return((sst - sse)/sst)
-}
 
 diagnostics = function(fit, frequency, response, infovar, type.effect, lag.one) {
   
@@ -1533,26 +1357,6 @@ diagnostics = function(fit, frequency, response, infovar, type.effect, lag.one) 
   res = as.numeric(fit$residuals)
   plot(preds, res, ylab = "Residuals", xlab = "Predictions")
   
-  # Construct the fitted vs. residuals plot for each canton separately. In this fashion, it 
-  # is more like an acf plot for time series objects.
-  
-  # # Number of observations per canton
-  # time.ind = length(fit[["model"]][["Y"]])/26
-  # 
-  # for (i in 1:26) {
-  #   
-  #   par(mfrow = c(4,5))
-  #   plot(res[((i-1)*time.ind + 1):(i*time.ind)], xlab = "Time", ylab = "Residuals")
-  #   
-  # } 
-  # 
-  # # Reset margins
-  # par(mfrow = c(1,1))
-  
-  # Cooks distance; there is no option to compute the cooks distance in the plm package
-  # so it`s easiest to run the fixed effects model via lm (which yields the exact same model) and use the designated 
-  # function provided in that package. We do it for the fixed effects models.
-  
   # Two-way demean data to use in lm 
   data = tw.demean(data = data.prep(lag = 7, shift = 14, response = response, r.infovar = 21, frequency = frequency)$data,
                    response = response, frequency = frequency)
@@ -1571,7 +1375,6 @@ diagnostics = function(fit, frequency, response, infovar, type.effect, lag.one) 
   cooksD = cooks.distance(fit.original)
   influential = cooksD[(cooksD > 4/nrow(data))]
   influential.05 = cooksD[(cooksD > 0.5)]
-  #influential = cooksD[(cooksD > (4 * mean(cooksD, na.rm = TRUE)))]
   
   # Remove outlaying observations
   names_of_influential = names(influential)
@@ -1623,11 +1426,11 @@ data.prep.halfcantons = function(shift, response, startdate = "2020-07-06",
   # first vaccinations took place on "2020-12-21". This is the reason for our sample selection.
   
   # Read in data
-  DataCovid = read.csv(".\\Data\\DataCovid.csv") 
-  dat.new = read.csv(".\\Data\\policy_stuff.csv", header = TRUE, sep = ",")
+  covid = read.csv(".\\Data\\covid.csv") 
+  policy = read.csv(".\\Data\\policy.csv", header = TRUE, sep = ",")
   
   # Merge data on common days
-  data = merge(DataCovid, dat.new)
+  data = merge(covid, policy)
   
   # Delete unnecessary variables to might lead to conflicts
   data = data %>%
@@ -1655,10 +1458,6 @@ data.prep.halfcantons = function(shift, response, startdate = "2020-07-06",
   
   if (response == "casegrowth") {
     
-    # Construct target variable and lagged target variable. We do that by computing the new cases per canton and week. We can then
-    # compute the log-growth rate using that series, which constructs 7 times that same growth rate per canton and week. When aggregating, 
-    # we can then take the mean over disjoint weeks to obtain the desired variable. We do that for all growth rates.
-    
     # Construct national aggregates
     sumTotalCH = aggregate(data$sumTotal, by = list(data$datum), FUN  = sum)
     sumTotalCH = rename(sumTotalCH, datum = Group.1)
@@ -1677,11 +1476,6 @@ data.prep.halfcantons = function(shift, response, startdate = "2020-07-06",
     data = data %>%
       relocate(sumTotal, .before = NewCases)
     
-    # We now have all variables constant across oneweek and canton which need to be constant. The other ones
-    # are aggregated to weekly data by simply averaging the values per week and canton. Note that we take the sum
-    # for transactions and tests as we need the new number of transactions and tests per canton and week. These variables 
-    # already come supplied as new transactions and tests so we do not have to treat them as the cases where we had to explicitly 
-    # calculate the new cases as done in the above code.
     data = data %>%
       group_by(geoRegion.2, oneweek) %>%
       summarize(newcases_we           = sum(NewCases),
@@ -1706,10 +1500,8 @@ data.prep.halfcantons = function(shift, response, startdate = "2020-07-06",
                 mask_treat_we             = mean(mask_treat)) %>%
       ungroup()
     
-    # Using newcases_we, newcases.national_we, newtransactions_we and newtests_we, we can now compute the weekly growth rates.
     
     # Create the response variable and lead response variable. 
-    # Check if values are below the threshold of 0.1 and set it to 0.1 if so. Does not happen
     data$newcases_we[data$newcases_we < 0.1] = 0.1
     data$casegrowth_we = paneldiff(x = log(data$newcases_we), id = data$geoRegion.2, t = as.Date(data$oneweek), l = 1)
     data$casegrowth_we = panellag(x = data$casegrowth_we, i = data$geoRegion.2, t = as.Date(data$oneweek), lag = -shift/7)
@@ -1721,7 +1513,7 @@ data.prep.halfcantons = function(shift, response, startdate = "2020-07-06",
     # log Delta Cit
     data$logdiffcases_we = lognozero(paneldiff(x = data$newcases_we, id = data$geoRegion.2, t = as.Date(data$oneweek), lag = 1))
     
-    # Lagged target variable on national level; works with id argument
+    # Lagged target variable on national level
     data$newcases.national_we[data$newcases.national_we < 0.1] = 0.1
     data$casegrowthlag.national_we = paneldiff(x = log(data$newcases.national_we), id = data$geoRegion.2, t = as.Date(data$oneweek), l = 1)
     
